@@ -21,6 +21,7 @@ lazy_static::lazy_static! {
 }
 
 pub mod actions;
+pub mod api;
 pub mod apps;
 pub mod backup;
 pub mod config;

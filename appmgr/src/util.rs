@@ -1,5 +1,5 @@
 use std::fmt;
-use std::marker::PhantomData;
+use std::marker::{PhantomData, Unpin};
 use std::path::{Path, PathBuf};
 
 use failure::ResultExt as _;
@@ -458,7 +458,7 @@ pub async fn unlock(lock: FileLock) -> std::io::Result<()> {
 pub async fn from_yaml_async_reader<T, R>(mut reader: R) -> Result<T, crate::Error>
 where
     T: for<'de> serde::Deserialize<'de>,
-    R: AsyncRead + Unpin,
+    R: AsyncRead + Unpin + Send + Sync,
 {
     let mut buffer = Vec::new();
     reader.read_to_end(&mut buffer).await?;
@@ -470,7 +470,7 @@ where
 pub async fn to_yaml_async_writer<T, W>(mut writer: W, value: &T) -> Result<(), crate::Error>
 where
     T: serde::Serialize,
-    W: AsyncWrite + Unpin,
+    W: AsyncWrite + Unpin + Send + Sync,
 {
     let mut buffer = serde_yaml::to_vec(value).with_code(crate::error::SERDE_ERROR)?;
     buffer.extend_from_slice(b"\n");
@@ -481,7 +481,7 @@ where
 pub async fn from_cbor_async_reader<T, R>(mut reader: R) -> Result<T, crate::Error>
 where
     T: for<'de> serde::Deserialize<'de>,
-    R: AsyncRead + Unpin,
+    R: AsyncRead + Unpin + Send + Sync,
 {
     let mut buffer = Vec::new();
     reader.read_to_end(&mut buffer).await?;
@@ -493,7 +493,7 @@ where
 pub async fn from_json_async_reader<T, R>(mut reader: R) -> Result<T, crate::Error>
 where
     T: for<'de> serde::Deserialize<'de>,
-    R: AsyncRead + Unpin,
+    R: AsyncRead + Unpin + Send + Sync,
 {
     let mut buffer = Vec::new();
     reader.read_to_end(&mut buffer).await?;
@@ -505,7 +505,7 @@ where
 pub async fn to_json_async_writer<T, W>(mut writer: W, value: &T) -> Result<(), crate::Error>
 where
     T: serde::Serialize,
-    W: AsyncWrite + Unpin,
+    W: AsyncWrite + Unpin + Send + Sync,
 {
     let buffer = serde_json::to_string(value).with_code(crate::error::SERDE_ERROR)?;
     writer.write_all(&buffer.as_bytes()).await?;
@@ -515,7 +515,7 @@ where
 pub async fn to_json_pretty_async_writer<T, W>(mut writer: W, value: &T) -> Result<(), crate::Error>
 where
     T: serde::Serialize,
-    W: AsyncWrite + Unpin,
+    W: AsyncWrite + Unpin + Send + Sync,
 {
     let mut buffer = serde_json::to_string_pretty(value).with_code(crate::error::SERDE_ERROR)?;
     buffer.push_str("\n");
