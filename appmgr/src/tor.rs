@@ -4,21 +4,22 @@ use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use failure::ResultExt as _;
+use anyhow::Context;
+use serde::{Deserialize, Serialize};
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 
-use crate::util::{Invoke, PersistencePath, YamlUpdateHandle};
-use crate::{Error, ResultExt as _};
+use crate::util::{PersistencePath, YamlUpdateHandle};
+use crate::{Error, ResultExt};
 
-#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum LanOptions {
     Standard,
     Custom { port: u16 },
 }
 
-#[derive(Debug, Clone, Copy, serde::Serialize)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub struct PortMapping {
     pub internal: u16,
     pub tor: u16,
@@ -65,7 +66,7 @@ pub const HIDDEN_SERVICE_DIR_ROOT: &'static str = "/var/lib/tor";
 pub const ETC_HOSTNAME: &'static str = "/etc/hostname";
 pub const ETC_NGINX_SERVICES_CONF: &'static str = "/etc/nginx/sites-available/start9-services.conf";
 
-#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum HiddenServiceVersion {
     V1,
@@ -82,7 +83,7 @@ impl From<HiddenServiceVersion> for usize {
     }
 }
 impl std::convert::TryFrom<usize> for HiddenServiceVersion {
-    type Error = failure::Error;
+    type Error = anyhow::Error;
     fn try_from(v: usize) -> Result<Self, Self::Error> {
         Ok(match v {
             1 => HiddenServiceVersion::V1,
@@ -103,7 +104,7 @@ impl std::fmt::Display for HiddenServiceVersion {
     }
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Service {
     pub ip: Ipv4Addr,
     pub ports: Vec<PortMapping>,
@@ -111,14 +112,14 @@ pub struct Service {
     pub hidden_service_version: HiddenServiceVersion,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NewService {
     pub ports: Vec<PortMapping>,
     #[serde(default)]
     pub hidden_service_version: HiddenServiceVersion,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ServicesMap {
     pub map: HashMap<String, Service>,
     pub ips: BTreeSet<Ipv4Addr>,
@@ -185,7 +186,7 @@ pub async fn services_map_mut(
 pub async fn write_services(hidden_services: &ServicesMap) -> Result<(), Error> {
     tokio::fs::copy(crate::TOR_RC, ETC_TOR_RC)
         .await
-        .with_context(|e| format!("{} -> {}: {}", crate::TOR_RC, ETC_TOR_RC, e))
+        .with_context(|| format!("{} -> {}", crate::TOR_RC, ETC_TOR_RC))
         .with_code(crate::error::FILESYSTEM_ERROR)?;
     let mut f = tokio::fs::OpenOptions::new()
         .append(true)
@@ -409,10 +410,10 @@ pub async fn read_tor_address(name: &str, timeout: Option<Duration>) -> Result<S
     }
     let tor_addr = match tokio::fs::read_to_string(&addr_path).await {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(e)
-            .with_context(|e| format!("{}: {}", addr_path.display(), e))
+            .with_context(|| format!("{}", addr_path.display()))
             .with_code(crate::error::NOT_FOUND),
         a => a
-            .with_context(|e| format!("{}: {}", addr_path.display(), e))
+            .with_context(|| format!("{}", addr_path.display()))
             .with_code(crate::error::FILESYSTEM_ERROR),
     }?;
     Ok(tor_addr.trim().to_owned())
@@ -451,7 +452,7 @@ pub async fn read_tor_key(
         HiddenServiceVersion::V3 => {
             let mut f = tokio::fs::File::open(&addr_path)
                 .await
-                .with_context(|e| format!("{}: {}", e, addr_path.display()))
+                .with_context(|| format!("{}", addr_path.display()))
                 .with_code(crate::error::FILESYSTEM_ERROR)?;
             let mut buf = [0; 96];
             f.read_exact(&mut buf).await?;
@@ -459,7 +460,7 @@ pub async fn read_tor_key(
         }
         _ => tokio::fs::read_to_string(&addr_path)
             .await
-            .with_context(|e| format!("{}: {}", e, addr_path.display()))
+            .with_context(|| format!("{}", addr_path.display()))
             .with_code(crate::error::FILESYSTEM_ERROR)?
             .trim_end_matches("\u{0}")
             .to_string(),
@@ -589,7 +590,7 @@ pub async fn change_key(
     if hidden_service_path.exists() {
         tokio::fs::remove_dir_all(&hidden_service_path)
             .await
-            .with_context(|e| format!("{}: {}", hidden_service_path.display(), e))
+            .with_context(|| format!("{}", hidden_service_path.display()))
             .with_code(crate::error::FILESYSTEM_ERROR)?;
     }
     if let Some(key) = key {
@@ -599,7 +600,7 @@ pub async fn change_key(
         key_data.extend_from_slice(&key.to_bytes());
         tokio::fs::write(&key_path, key_data)
             .await
-            .with_context(|e| format!("{}: {}", key_path.display(), e))
+            .with_context(|| format!("{}", key_path.display()))
             .with_code(crate::error::FILESYSTEM_ERROR)?;
     }
     log::info!("Reloading Tor.");

@@ -92,7 +92,7 @@ pub async fn create_backup<P: AsRef<Path>>(
             Vec::new()
         }
     } else {
-        return Err(format_err!("Volume For {} Does Not Exist", app_id))
+        return Err(anyhow!("Volume For {} Does Not Exist", app_id))
             .with_code(crate::error::NOT_FOUND);
     };
     let running = status.status == crate::apps::DockerStatus::Running;

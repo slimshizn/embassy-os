@@ -16,6 +16,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f26201604c87b1e01bd3d98f8d5d9a8fcbb815e8cedb41ffccbeb4bf593a35fe"
 
 [[package]]
+name = "ahash"
+version = "0.4.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "739f4a8db6605981345c5654f3a85b056ce52f37a39d34da03f25bf2151ea16e"
+
+[[package]]
 name = "aho-corasick"
 version = "0.7.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -43,10 +49,12 @@ checksum = "afddf7f520a80dbf76e6f50a35bca42a2331ef227a28b3b6dc5c2e2338d114b1"
 name = "appmgr"
 version = "0.2.9"
 dependencies = [
+ "anyhow",
  "async-stream",
  "async-trait",
  "avahi-sys",
  "base32",
+ "base64",
  "clap",
  "ctrlc",
  "ed25519-dalek",
@@ -55,6 +63,7 @@ dependencies = [
  "file-lock",
  "futures",
  "git-version",
+ "hashlink",
  "http",
  "hyper",
  "itertools 0.10.0",
@@ -65,6 +74,7 @@ dependencies = [
  "nix 0.19.1",
  "openssl",
  "patch-db",
+ "percent-encoding",
  "pest",
  "pest_derive",
  "pin-project",
@@ -78,8 +88,10 @@ dependencies = [
  "serde",
  "serde_cbor 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json",
+ "serde_qs",
  "serde_yaml",
  "simple-logging",
+ "thiserror",
  "tokio 1.2.0",
  "tokio-compat-02",
  "tokio-tar",
@@ -922,6 +934,19 @@ name = "hashbrown"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7afe4a420e3fe79967a00898cc1f4db7c8a49a9333a29f8a4bd76a253d5cd04"
+dependencies = [
+ "ahash",
+]
+
+[[package]]
+name = "hashlink"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d99cf782f0dc4372d26846bec3de7804ceb5df083c2d4462c0b8d2330e894fa8"
+dependencies = [
+ "hashbrown",
+ "serde",
+]
 
 [[package]]
 name = "hermit-abi"
@@ -1973,6 +1998,17 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "serde_qs"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5cb0f0564a84554436c4ceff5c896308d4e09d0eb4bd0215b8f698f88084601"
+dependencies = [
+ "percent-encoding",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]
