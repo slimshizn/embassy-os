@@ -13,7 +13,7 @@ import { LoaderService, markAsLoadingDuring$, markAsLoadingDuringP } from 'src/a
 import { BehaviorSubject, combineLatest, from, merge, Observable, of, Subject } from 'rxjs'
 import { wizardModal } from 'src/app/components/install-wizard/install-wizard.component'
 import { WizardBaker } from 'src/app/components/install-wizard/prebaked-wizards'
-import { catchError, concatMap, delay, distinctUntilChanged, filter, map, mergeMap, retryWhen, switchMap, take, tap } from 'rxjs/operators'
+import { catchError, concatMap, delay, filter, map, retryWhen, switchMap, take, tap } from 'rxjs/operators'
 import { Cleanup } from 'src/app/util/cleanup'
 import { InformationPopoverComponent } from 'src/app/components/information-popover/information-popover.component'
 import { Emver } from 'src/app/services/emver.service'
