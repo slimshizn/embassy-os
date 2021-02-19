@@ -66,11 +66,11 @@ export abstract class ApiService {
   abstract serviceAction (appId: string, serviceAction: ServiceAction): Promise<ReqRes.ServiceActionResponse>
 }
 
-export function isRpcFailure<Error, Result> (arg: { error: Error } | { result: Result}): arg is { error: Error } {
+export function isRpcFailure<Error, Result> (arg: { error: Error } | { result: Result }): arg is { error: Error } {
   return !!(arg as any).error
 }
 
-export function isRpcSuccess<Error, Result> (arg: { error: Error } | { result: Result}): arg is { result: Result } {
+export function isRpcSuccess<Error, Result> (arg: { error: Error } | { result: Result }): arg is { result: Result } {
   return !!(arg as any).result
 }
 
