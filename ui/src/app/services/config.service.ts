@@ -2,9 +2,15 @@ import { Injectable } from '@angular/core'
 
 const { patchDb, maskAs, api, skipStartupAlerts } = require('../../../ui-config.json') as UiConfig
 
-// patchDb.type === 'ws' and api.mocks === true presently does not work. Mocks are intended to be used with poll.
 type UiConfig = {
-  patchDb: { type: 'poll', cooldown: number  /* in ms */ } | { type: 'ws', url: string, version: number }
+  patchDb: {
+    // If this is false (the default), poll will be used if in consulate only. If true it will be on regardless of env. This is useful in concert with api mocks.
+    usePollOverride: boolean,
+    poll: { cooldown: number /* in ms */ },
+    websocket: { type: 'ws', url: string, version: number }
+    // Wait this long (ms) before asking BE for a dump when out of order messages are received
+    timeoutForMissingPatch: number
+  }
   api: {
     mocks: boolean
     url: string
@@ -27,6 +33,7 @@ export class ConfigService {
   skipStartupAlerts  = skipStartupAlerts
   isConsulateIos     = window['platform'] === 'ios'
   isConsulateAndroid = window['platform'] === 'android'
+  isConsulate = this.isConsulateIos || this.isConsulateAndroid
 
   isTor () : boolean {
     return (maskAs === 'tor') || this.origin.endsWith('.onion')
