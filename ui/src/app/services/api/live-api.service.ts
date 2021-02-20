@@ -5,7 +5,7 @@ import { AppAvailablePreview, AppAvailableFull, AppInstalledFull, AppInstalledPr
 import { S9Notification, SSHFingerprint, ServerModel, DiskInfo } from '../../models/server-model'
 import { ApiService, ReqRes  } from './api.service'
 import { ApiServer, Unit } from './api-types'
-import { HttpClient, HttpErrorResponse } from '@angular/common/http'
+import { HttpErrorResponse } from '@angular/common/http'
 import { isUnauthorized } from 'src/app/util/web.util'
 import { Replace } from 'src/app/util/types.util'
 import { AppMetrics, parseMetricsPermissive } from 'src/app/util/metrics.util'
