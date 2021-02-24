@@ -812,7 +812,7 @@ postDisableLanLogic appId = do
     case action of
         Nothing -> pure () -- Nothing to do here
         Just x  -> do
-            LAsync.cancel x
+            LAsync.uninterruptibleCancel x
             putStrLn @Text "test3"
 
 postActionR :: AppId -> Handler (JSONResponse JSONRPC.Response)
