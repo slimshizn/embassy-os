@@ -805,11 +805,16 @@ postDisableLanR = intoHandler . postDisableLanLogic
 
 postDisableLanLogic :: (Has (Reader AgentCtx) sig m, MonadBaseControl IO m, MonadIO m) => AppId -> m ()
 postDisableLanLogic appId = do
+    putStrLn @Text "test"
     cache  <- asks appLanThreads
     action <- liftIO . atomically $ stateTVar cache $ \s -> (HM.lookup appId s, HM.delete appId s)
+    putStrLn @Text "test2"
     case action of
         Nothing -> pure () -- Nothing to do here
-        Just x  -> LAsync.cancel x
+        Just x  -> do
+            LAsync.cancel x
+            putStrLn @Text "test3"
+
 postActionR :: AppId -> Handler (JSONResponse JSONRPC.Response)
 postActionR appId = do
     req <- requireCheckJsonBody
