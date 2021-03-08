@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 
-use crate::util::{PersistencePath, YamlUpdateHandle};
+use crate::util::{Invoke, PersistencePath, YamlUpdateHandle};
 use crate::{Error, ResultExt};
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -234,12 +234,12 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                 .join("hostname"),
         )
         .await
-        .with_context(|e| format!("{}/app-{}/hostname: {}", HIDDEN_SERVICE_DIR_ROOT, app_id, e))
+        .with_context(|| format!("{}/app-{}/hostname", HIDDEN_SERVICE_DIR_ROOT, app_id))
         .with_code(crate::error::FILESYSTEM_ERROR)?;
         let hostname_str = hostname
             .trim()
             .strip_suffix(".onion")
-            .ok_or_else(|| failure::format_err!("invalid tor hostname"))
+            .ok_or_else(|| anyhow!("invalid tor hostname"))
             .no_code()?;
         for mapping in &service.ports {
             match &mapping.lan {
@@ -327,12 +327,7 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                                 "/root/agent/ca/intermediate/certs/embassy-int-ca.crt.pem",
                             )
                             .await
-                            .with_context(|e| {
-                                format!(
-                                    "{}: /root/agent/ca/intermediate/certs/embassy-int-ca.crt.pem",
-                                    e
-                                )
-                            })
+                            .context("/root/agent/ca/intermediate/certs/embassy-int-ca.crt.pem")
                             .with_code(crate::error::FILESYSTEM_ERROR)?,
                             &mut *fullchain_file,
                         )
@@ -342,9 +337,7 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                                 "/root/agent/ca/certs/embassy-root-ca.cert.pem",
                             )
                             .await
-                            .with_context(|e| {
-                                format!("{}: /root/agent/ca/certs/embassy-root-ca.cert.pem", e)
-                            })
+                            .context("/root/agent/ca/certs/embassy-root-ca.cert.pem")
                             .with_code(crate::error::FILESYSTEM_ERROR)?,
                             &mut *fullchain_file,
                         )

@@ -45,12 +45,10 @@ impl Action {
     pub async fn perform(&self, app_id: &str) -> Result<String, RpcError> {
         let man = crate::apps::manifest(app_id)
             .await
-            .map_err(failure::Error::from)
-            .map_err(failure::Error::compat)?;
+            .map_err(anyhow::Error::from)?;
         let status = crate::apps::status(app_id, true)
             .await
-            .map_err(failure::Error::from)
-            .map_err(failure::Error::compat)?
+            .map_err(anyhow::Error::from)?
             .status;
         if !self.allowed_statuses.contains(&status) {
             return Err(RpcError {

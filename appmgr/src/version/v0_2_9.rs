@@ -19,7 +19,7 @@ impl VersionT for Version {
             &crate::tor::services_map(&PersistencePath::from_ref(crate::SERVICES_YAML)).await?,
         )
         .await?;
-        tokio::fs::os::unix::symlink(
+        tokio::fs::symlink(
             crate::tor::ETC_NGINX_SERVICES_CONF,
             "/etc/nginx/sites-enabled/start9-services.conf",
         )

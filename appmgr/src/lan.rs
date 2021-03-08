@@ -52,7 +52,7 @@ pub async fn enable_lan() -> Result<(), Error> {
             };
             let lan_address = tor_address
                 .strip_suffix(".onion")
-                .ok_or_else(|| failure::format_err!("Invalid Tor Address: {:?}", tor_address))?
+                .ok_or_else(|| anyhow!("Invalid Tor Address: {:?}", tor_address))?
                 .to_owned()
                 + ".local";
             let lan_address_ptr = std::ffi::CString::new(lan_address)
