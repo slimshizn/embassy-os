@@ -3,10 +3,9 @@
 use std::borrow::Cow;
 use std::path::Path;
 
-use appmgrlib::version::VersionT;
-use appmgrlib::*;
-
 use clap::{App, Arg, SubCommand};
+use embassy::version::VersionT;
+use embassy::*;
 
 #[tokio::main]
 async fn main() {

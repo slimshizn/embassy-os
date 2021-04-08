@@ -5,12 +5,24 @@ name = "appmgr"
 version = "0.2.12"
 
 [lib]
-name = "appmgrlib"
+name = "embassy"
 path = "src/lib.rs"
 
 [[bin]]
 name = "appmgr"
 path = "src/main.rs"
+
+[[bin]]
+name = "embassyd"
+path = "src/bin/embassyd.rs"
+
+[[bin]]
+name = "embassy-sdk"
+path = "src/bin/embassy-sdk.rs"
+
+[[bin]]
+name = "embassy-cli"
+pat = "src/bin/embassy-cli.rs"
 
 [features]
 avahi = ["avahi-sys"]
