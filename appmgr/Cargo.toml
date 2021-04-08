@@ -57,6 +57,7 @@ rand = "0.7.3"
 regex = "1.4.2"
 reqwest = { version = "0.10.9", features = ["stream", "json"] }
 rpassword = "5.0.0"
+rpc-toolkit = { version = "*", path = "../../rpc-toolkit/rpc-toolkit" }
 rust-argon2 = "0.8.3"
 scopeguard = "1.1" # because avahi-sys fucks your shit up
 serde = { version = "1.0.118", features = ["derive", "rc"] }
