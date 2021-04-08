@@ -24,6 +24,7 @@ pub mod actions;
 pub mod apps;
 pub mod backup;
 pub mod config;
+pub mod context;
 pub mod control;
 pub mod dependencies;
 pub mod disks;
@@ -50,5 +51,12 @@ pub use install::{install_name, install_path, install_url};
 pub use logs::{logs, notifications, stats, LogOptions};
 pub use pack::{pack, verify};
 pub use remove::remove;
+use rpc_toolkit::command;
+use rpc_toolkit::yajrc::RpcError;
 pub use update::update;
 pub use version::{init, self_update};
+
+#[command]
+pub fn main_api() -> Result<String, RpcError> {
+    Ok(todo!())
+}

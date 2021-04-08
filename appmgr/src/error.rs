@@ -48,6 +48,7 @@ impl From<std::io::Error> for Error {
         }
     }
 }
+
 pub trait ResultExt<T, E>
 where
     Self: Sized,

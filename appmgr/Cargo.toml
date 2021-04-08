@@ -31,6 +31,7 @@ portable = []
 production = []
 
 [dependencies]
+anyhow = "1.0.40"
 async-trait = "0.1.42"
 avahi-sys = { git = "https://github.com/Start9Labs/avahi-sys", branch = "feature/dynamic-linking", features = ["dynamic"], optional = true }
 base32 = "0.4.0"
@@ -38,24 +39,24 @@ clap = "2.33"
 ctrlc = "3.1.7"
 ed25519-dalek = "1.0.1"
 emver = { version = "0.1.0", features = ["serde"] }
-failure = "0.1.8"
 file-lock = "1.1"
 futures = "0.3.8"
 git-version = "0.3.4"
 http = "0.2.3"
-itertools = "0.9.0"
+itertools = "0.10.0"
 lazy_static = "1.4"
 libc = "0.2.86"
 linear-map = { version = "1.2", features = ["serde_impl"] }
 log = "0.4.11"
-nix = "0.19.1"
+nix = "0.20.0"
 openssl = "0.10.30"
+patch-db = { git = "https://github.com/Start9Labs/patch-db" }
 pest = "2.1"
 pest_derive = "2.1"
 prettytable-rs = "0.8.0"
-rand = "0.7.3"
+rand = "0.8.3"
 regex = "1.4.2"
-reqwest = { version = "0.10.9", features = ["stream", "json"] }
+reqwest = { version = "0.11.2", features = ["stream", "json"] }
 rpassword = "5.0.0"
 rpc-toolkit = { version = "*", path = "../../rpc-toolkit/rpc-toolkit" }
 rust-argon2 = "0.8.3"
@@ -65,7 +66,10 @@ serde_cbor = "0.11.1"
 serde_json = "1.0.59"
 serde_yaml = "0.8.14"
 simple-logging = "2.0"
-tokio = { version = "0.3.5", features = ["full"] }
-tokio-compat-02 = "0.1.2"
-tokio-tar = { version = "0.3.0", git = "https://github.com/dr-bonez/tokio-tar.git", rev = "1ba710f3" }
+thiserror = "1.0.24"
+tokio = { version = "1.4.0", features = ["full"] }
+tokio-compat-02 = "0.2.0"
+tokio-tar = { git = "https://github.com/dr-bonez/tokio-tar.git", branch = "tokio-1" }
 yajrc = { version = "0.1.0", git = "https://github.com/dr-bonez/yajrc", rev = "c2952a4a21c50f7be6f8003afa37ee77deb66d56" }
+
+failure = "*"
