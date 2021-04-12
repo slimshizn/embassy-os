@@ -4,9 +4,7 @@ use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use failure::ResultExt as _;
-use tokio::io::AsyncReadExt;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::util::{Invoke, PersistencePath, YamlUpdateHandle};
 use crate::{Error, ResultExt as _};
@@ -81,17 +79,17 @@ impl From<HiddenServiceVersion> for usize {
         }
     }
 }
-impl std::convert::TryFrom<usize> for HiddenServiceVersion {
-    type Error = failure::Error;
-    fn try_from(v: usize) -> Result<Self, Self::Error> {
-        Ok(match v {
-            1 => HiddenServiceVersion::V1,
-            2 => HiddenServiceVersion::V2,
-            3 => HiddenServiceVersion::V3,
-            n => bail!("Invalid HiddenServiceVersion {}", n),
-        })
-    }
-}
+// impl std::convert::TryFrom<usize> for HiddenServiceVersion {
+//     type Error = anyhow::Error;
+//     fn try_from(v: usize) -> Result<Self, Self::Error> {
+//         Ok(match v {
+//             1 => HiddenServiceVersion::V1,
+//             2 => HiddenServiceVersion::V2,
+//             3 => HiddenServiceVersion::V3,
+//             n => bail!("Invalid HiddenServiceVersion {}", n),
+//         })
+//     }
+// }
 impl Default for HiddenServiceVersion {
     fn default() -> Self {
         HiddenServiceVersion::V3
@@ -185,8 +183,12 @@ pub async fn services_map_mut(
 pub async fn write_services(hidden_services: &ServicesMap) -> Result<(), Error> {
     tokio::fs::copy(crate::TOR_RC, ETC_TOR_RC)
         .await
-        .with_context(|e| format!("{} -> {}: {}", crate::TOR_RC, ETC_TOR_RC, e))
-        .with_code(crate::error::FILESYSTEM_ERROR)?;
+        .with_ctx(|_| {
+            (
+                crate::ErrorKind::Filesystem,
+                format!("{} -> {}", crate::TOR_RC, ETC_TOR_RC),
+            )
+        })?;
     let mut f = tokio::fs::OpenOptions::new()
         .append(true)
         .open(ETC_TOR_RC)
@@ -233,13 +235,17 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                 .join("hostname"),
         )
         .await
-        .with_context(|e| format!("{}/app-{}/hostname: {}", HIDDEN_SERVICE_DIR_ROOT, app_id, e))
-        .with_code(crate::error::FILESYSTEM_ERROR)?;
+        .with_ctx(|_| {
+            (
+                crate::ErrorKind::Filesystem,
+                format!("{}/app-{}/hostname", HIDDEN_SERVICE_DIR_ROOT, app_id),
+            )
+        })?;
         let hostname_str = hostname
             .trim()
             .strip_suffix(".onion")
-            .ok_or_else(|| failure::format_err!("invalid tor hostname"))
-            .no_code()?;
+            .ok_or_else(|| anyhow::anyhow!("{}", hostname))
+            .with_kind(crate::ErrorKind::InvalidOnionAddress)?;
         for mapping in &service.ports {
             match &mapping.lan {
                 Some(LanOptions::Standard) => {
@@ -262,8 +268,9 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                             .arg("-noout")
                             .arg("-out")
                             .arg(&key_path)
-                            .invoke("OpenSSL GenKey")
-                            .await?;
+                            .invoke(crate::ErrorKind::OpenSSL)
+                            .await
+                            .map_err(|e| crate::Error::new(e.source.context("GenKey"), e.kind))?;
                         tokio::fs::write(
                             &conf_path,
                             format!(
@@ -286,8 +293,9 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                             ))
                             .arg("-out")
                             .arg(&req_path)
-                            .invoke("OpenSSL Req")
-                            .await?;
+                            .invoke(crate::ErrorKind::OpenSSL)
+                            .await
+                            .map_err(|e| crate::Error::new(e.source.context("Req"), e.kind))?;
                         tokio::process::Command::new("openssl")
                             .arg("ca")
                             .arg("-batch")
@@ -307,8 +315,9 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                             .arg(&req_path)
                             .arg("-out")
                             .arg(&cert_path)
-                            .invoke("OpenSSL CA")
-                            .await?;
+                            .invoke(crate::ErrorKind::OpenSSL)
+                            .await
+                            .map_err(|e| crate::Error::new(e.source.context("CA"), e.kind))?;
                         log::info!("Writing fullchain to: {}", fullchain_path.path().display());
                         tokio::io::copy(
                             &mut tokio::fs::File::open(&cert_path).await?,
@@ -320,13 +329,12 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                                 "/root/agent/ca/intermediate/certs/embassy-int-ca.crt.pem",
                             )
                             .await
-                            .with_context(|e| {
-                                format!(
-                                    "{}: /root/agent/ca/intermediate/certs/embassy-int-ca.crt.pem",
-                                    e
+                            .with_ctx(|_| {
+                                (
+                                    crate::ErrorKind::Filesystem,
+                                    "/root/agent/ca/intermediate/certs/embassy-int-ca.crt.pem",
                                 )
-                            })
-                            .with_code(crate::error::FILESYSTEM_ERROR)?,
+                            })?,
                             &mut *fullchain_file,
                         )
                         .await?;
@@ -335,10 +343,12 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                                 "/root/agent/ca/certs/embassy-root-ca.cert.pem",
                             )
                             .await
-                            .with_context(|e| {
-                                format!("{}: /root/agent/ca/certs/embassy-root-ca.cert.pem", e)
-                            })
-                            .with_code(crate::error::FILESYSTEM_ERROR)?,
+                            .with_ctx(|_| {
+                                (
+                                    crate::ErrorKind::Filesystem,
+                                    "/root/agent/ca/certs/embassy-root-ca.cert.pem",
+                                )
+                            })?,
                             &mut *fullchain_file,
                         )
                         .await?;
@@ -402,12 +412,15 @@ pub async fn read_tor_address(name: &str, timeout: Option<Duration>) -> Result<S
         }
     }
     let tor_addr = match tokio::fs::read_to_string(&addr_path).await {
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(e)
-            .with_context(|e| format!("{}: {}", addr_path.display(), e))
-            .with_code(crate::error::NOT_FOUND),
-        a => a
-            .with_context(|e| format!("{}: {}", addr_path.display(), e))
-            .with_code(crate::error::FILESYSTEM_ERROR),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            Err(e).with_ctx(|_| (crate::ErrorKind::NotFound, addr_path.display().to_string()))
+        }
+        a => a.with_ctx(|_| {
+            (
+                crate::ErrorKind::Filesystem,
+                addr_path.display().to_string(),
+            )
+        }),
     }?;
     Ok(tor_addr.trim().to_owned())
 }
@@ -443,18 +456,24 @@ pub async fn read_tor_key(
     }
     let tor_key = match version {
         HiddenServiceVersion::V3 => {
-            let mut f = tokio::fs::File::open(&addr_path)
-                .await
-                .with_context(|e| format!("{}: {}", e, addr_path.display()))
-                .with_code(crate::error::FILESYSTEM_ERROR)?;
+            let mut f = tokio::fs::File::open(&addr_path).await.with_ctx(|_| {
+                (
+                    crate::ErrorKind::Filesystem,
+                    addr_path.display().to_string(),
+                )
+            })?;
             let mut buf = [0; 96];
             f.read_exact(&mut buf).await?;
             base32::encode(base32::Alphabet::RFC4648 { padding: false }, &buf[32..]).to_lowercase()
         }
         _ => tokio::fs::read_to_string(&addr_path)
             .await
-            .with_context(|e| format!("{}: {}", e, addr_path.display()))
-            .with_code(crate::error::FILESYSTEM_ERROR)?
+            .with_ctx(|_| {
+                (
+                    crate::ErrorKind::Filesystem,
+                    addr_path.display().to_string(),
+                )
+            })?
             .trim_end_matches("\u{0}")
             .to_string(),
     };
@@ -495,7 +514,7 @@ pub async fn set_svc(
         .status()?;
     crate::ensure_code!(
         svc_exit.success(),
-        crate::error::GENERAL_ERROR,
+        crate::ErrorKind::Tor,
         "Failed to Reload Tor: {}",
         svc_exit
             .code()
@@ -519,7 +538,7 @@ pub async fn set_svc(
         .status()?;
     crate::ensure_code!(
         svc_exit.success(),
-        crate::error::GENERAL_ERROR,
+        crate::ErrorKind::Nginx,
         "Failed to Reload Nginx: {}",
         svc_exit
             .code()
@@ -552,7 +571,7 @@ pub async fn rm_svc(name: &str) -> Result<(), Error> {
         .status()?;
     crate::ensure_code!(
         svc_exit.success(),
-        crate::error::GENERAL_ERROR,
+        crate::ErrorKind::Tor,
         "Failed to Reload Tor: {}",
         svc_exit.code().unwrap_or(0)
     );
@@ -563,7 +582,7 @@ pub async fn rm_svc(name: &str) -> Result<(), Error> {
         .status()?;
     crate::ensure_code!(
         svc_exit.success(),
-        crate::error::GENERAL_ERROR,
+        crate::ErrorKind::Nginx,
         "Failed to Reload Nginx: {}",
         svc_exit
             .code()
@@ -583,8 +602,12 @@ pub async fn change_key(
     if hidden_service_path.exists() {
         tokio::fs::remove_dir_all(&hidden_service_path)
             .await
-            .with_context(|e| format!("{}: {}", hidden_service_path.display(), e))
-            .with_code(crate::error::FILESYSTEM_ERROR)?;
+            .with_ctx(|_| {
+                (
+                    crate::ErrorKind::Filesystem,
+                    hidden_service_path.display().to_string(),
+                )
+            })?;
     }
     if let Some(key) = key {
         tokio::fs::create_dir_all(&hidden_service_path).await?;
@@ -593,8 +616,7 @@ pub async fn change_key(
         key_data.extend_from_slice(&key.to_bytes());
         tokio::fs::write(&key_path, key_data)
             .await
-            .with_context(|e| format!("{}: {}", key_path.display(), e))
-            .with_code(crate::error::FILESYSTEM_ERROR)?;
+            .with_ctx(|_| (crate::ErrorKind::Filesystem, key_path.display().to_string()))?;
     }
     log::info!("Reloading Tor.");
     let svc_exit = std::process::Command::new("service")
@@ -602,7 +624,7 @@ pub async fn change_key(
         .status()?;
     crate::ensure_code!(
         svc_exit.success(),
-        crate::error::GENERAL_ERROR,
+        crate::ErrorKind::Tor,
         "Failed to Reload Tor: {}",
         svc_exit.code().unwrap_or(0)
     );
@@ -626,7 +648,7 @@ pub async fn reload() -> Result<(), Error> {
         .status()?;
     crate::ensure_code!(
         svc_exit.success(),
-        crate::error::GENERAL_ERROR,
+        crate::ErrorKind::Tor,
         "Failed to Reload Tor: {}",
         svc_exit.code().unwrap_or(0)
     );
@@ -644,7 +666,7 @@ pub async fn restart() -> Result<(), Error> {
         .status()?;
     crate::ensure_code!(
         svc_exit.success(),
-        crate::error::GENERAL_ERROR,
+        crate::ErrorKind::Tor,
         "Failed to Restart Tor: {}",
         svc_exit.code().unwrap_or(0)
     );

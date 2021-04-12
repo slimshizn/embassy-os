@@ -1,6 +1,7 @@
-use crate::Error;
 use avahi_sys;
 use futures::future::pending;
+
+use crate::Error;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct AppId {
@@ -52,7 +53,12 @@ pub async fn enable_lan() -> Result<(), Error> {
             };
             let lan_address = tor_address
                 .strip_suffix(".onion")
-                .ok_or_else(|| failure::format_err!("Invalid Tor Address: {:?}", tor_address))?
+                .ok_or_else(|| {
+                    Error::new(
+                        anyhow::anyhow!("{:?}", tor_address),
+                        crate::ErrorKind::InvalidOnionAddress,
+                    )
+                })?
                 .to_owned()
                 + ".local";
             let lan_address_ptr = std::ffi::CString::new(lan_address)

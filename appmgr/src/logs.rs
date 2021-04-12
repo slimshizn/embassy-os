@@ -2,14 +2,11 @@ use std::borrow::Cow;
 use std::ffi::{OsStr, OsString};
 use std::path::Path;
 
-use failure::ResultExt as _;
-use futures::stream::StreamExt;
-use futures::stream::TryStreamExt;
-use itertools::Itertools;
+use futures::stream::{StreamExt, TryStreamExt};
+use tokio_stream::wrappers::LinesStream;
 
 use crate::util::PersistencePath;
-use crate::Error;
-use crate::ResultExt as _;
+use crate::{Error, ResultExt as _};
 
 #[derive(Clone, Copy, Debug, serde::Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -37,7 +34,7 @@ impl std::str::FromStr for Level {
             "WARN" => Ok(Level::Warn),
             "SUCCESS" => Ok(Level::Success),
             "INFO" => Ok(Level::Info),
-            _ => Err(Error::from(format_err!("Unknown Notification Level"))),
+            _ => Err(todo!()),
         }
     }
 }
@@ -65,32 +62,7 @@ impl std::fmt::Display for Notification {
 impl std::str::FromStr for Notification {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut split = s.split(":");
-        Ok(Notification {
-            time: split
-                .next()
-                .ok_or_else(|| format_err!("missing time"))?
-                .parse::<f64>()
-                .map(|a| a as i64)
-                .no_code()?,
-            level: split
-                .next()
-                .ok_or_else(|| format_err!("missing level"))?
-                .parse()?,
-            code: split
-                .next()
-                .ok_or_else(|| format_err!("missing code"))?
-                .parse()
-                .no_code()?,
-            title: split
-                .next()
-                .ok_or_else(|| format_err!("missing title"))?
-                .replace("\u{A789}", ":"),
-            message: split
-                .intersperse(":")
-                .collect::<String>()
-                .replace("\u{2026}", "\n"),
-        })
+        todo!()
     }
 }
 
@@ -135,7 +107,7 @@ pub async fn logs<A: AsRef<str>, B: AsRef<str>>(
             .args(args.into_iter())
             .status()?
             .success(),
-        crate::error::DOCKER_ERROR,
+        crate::ErrorKind::Docker,
         "Failed to Collect Logs from Docker"
     );
     Ok(())
@@ -162,12 +134,13 @@ pub async fn notifications(id: &str) -> Result<Vec<Notification>, Error> {
     }?;
     let f = tokio::fs::File::open(&p)
         .await
-        .with_context(|e| format!("{}: {}", p.display(), e))
-        .with_code(crate::error::FILESYSTEM_ERROR)?;
-    tokio::io::AsyncBufReadExt::lines(tokio::io::BufReader::new(f))
-        .map(|a| a.map_err(From::from).and_then(|a| a.parse()))
-        .try_collect()
-        .await
+        .with_ctx(|_| (crate::ErrorKind::Filesystem, p.display().to_string()))?;
+    LinesStream::new(tokio::io::AsyncBufReadExt::lines(
+        tokio::io::BufReader::new(f),
+    ))
+    .map(|a| a.map_err(From::from).and_then(|a| a.parse()))
+    .try_collect()
+    .await
 }
 
 pub async fn stats(id: &str) -> Result<serde_yaml::Value, Error> {
@@ -193,7 +166,6 @@ pub async fn stats(id: &str) -> Result<serde_yaml::Value, Error> {
     }?;
     let f = tokio::fs::File::open(&p)
         .await
-        .with_context(|e| format!("{}: {}", p.display(), e))
-        .with_code(crate::error::FILESYSTEM_ERROR)?;
-    crate::util::from_yaml_async_reader(f).await.no_code()
+        .with_ctx(|e| (crate::ErrorKind::Filesystem, p.display().to_string()))?;
+    crate::util::from_yaml_async_reader(f).await
 }

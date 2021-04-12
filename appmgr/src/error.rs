@@ -1,50 +1,141 @@
 use std::fmt::Display;
 
-pub const GENERAL_ERROR: i32 = 1;
-pub const FILESYSTEM_ERROR: i32 = 2;
-pub const DOCKER_ERROR: i32 = 3;
-pub const CFG_SPEC_VIOLATION: i32 = 4;
-pub const CFG_RULES_VIOLATION: i32 = 5;
-pub const NOT_FOUND: i32 = 6;
-pub const INVALID_BACKUP_PASSWORD: i32 = 7;
-pub const VERSION_INCOMPATIBLE: i32 = 8;
-pub const NETWORK_ERROR: i32 = 9;
-pub const REGISTRY_ERROR: i32 = 10;
-pub const SERDE_ERROR: i32 = 11;
+use rpc_toolkit::yajrc::RpcError;
 
-#[derive(Debug, Fail)]
-#[fail(display = "{}", _0)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ErrorKind {
+    Unknown = 1,
+    Filesystem = 2,
+    Docker = 3,
+    ConfigSpecViolation = 4,
+    ConfigRulesViolation = 5,
+    NotFound = 6,
+    InvalidPassword = 7,
+    VersionIncompatible = 8,
+    Network = 9,
+    Registry = 10,
+    Serialization = 11,
+    Deserialization = 12,
+    Utf8 = 13,
+    ParseVersion = 14,
+    Duplicity = 15,
+    Nginx = 16,
+    Dependency = 17,
+    ParseS9pk = 18,
+    ParseUrl = 19,
+    GParted = 20,
+    Blkid = 21,
+    InvalidOnionAddress = 22,
+    Pack = 23,
+    ValidateS9pk = 24,
+    OpenSSL = 25,
+    Tor = 26,
+    ConfigGen = 27,
+}
+impl ErrorKind {
+    pub fn as_str(&self) -> &'static str {
+        use ErrorKind::*;
+        match self {
+            Unknown => "Unknown Error",
+            Filesystem => "Filesystem I/O Error",
+            Docker => "Docker Error",
+            ConfigSpecViolation => "Config Spec Violation",
+            ConfigRulesViolation => "Config Rules Violation",
+            NotFound => "Not Found",
+            InvalidPassword => "Invalid Password",
+            VersionIncompatible => "Version Incompatible",
+            Network => "Network Error",
+            Registry => "Registry Error",
+            Serialization => "Serialization Error",
+            Deserialization => "Deserialization Error",
+            Utf8 => "UTF8 Parse Error",
+            ParseVersion => "Version Parsing Error",
+            Duplicity => "Duplicity Error",
+            Nginx => "Nginx Error",
+            Dependency => "Dependency Error",
+            ParseS9pk => "S9PK Parsing Error",
+            ParseUrl => "URL Parsing Error",
+            GParted => "GNU Parted Error",
+            Blkid => "BLKID Error",
+            InvalidOnionAddress => "Invalid Onion Address",
+            Pack => "Pack Error",
+            ValidateS9pk => "S9PK Validation Error",
+            OpenSSL => "OpenSSL Error",
+            Tor => "Tor Daemon Error",
+            ConfigGen => "Config Generation Error",
+        }
+    }
+}
+impl Display for ErrorKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+#[derive(Debug)]
 pub struct Error {
-    pub failure: failure::Error,
-    pub code: Option<i32>,
+    pub source: anyhow::Error,
+    pub kind: ErrorKind,
+}
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.kind.as_str(), self.source)
+    }
 }
 impl Error {
-    pub fn new<E: Into<failure::Error>>(e: E, code: Option<i32>) -> Self {
+    pub fn new<E: Into<anyhow::Error>>(source: E, kind: ErrorKind) -> Self {
         Error {
-            failure: e.into(),
-            code,
-        }
-    }
-    pub fn from<E: Into<failure::Error>>(e: E) -> Self {
-        Error {
-            failure: e.into(),
-            code: None,
-        }
-    }
-}
-impl From<failure::Error> for Error {
-    fn from(e: failure::Error) -> Self {
-        Error {
-            failure: e,
-            code: None,
+            source: source.into(),
+            kind,
         }
     }
 }
 impl From<std::io::Error> for Error {
     fn from(e: std::io::Error) -> Self {
         Error {
-            failure: e.into(),
-            code: Some(2),
+            source: e.into(),
+            kind: ErrorKind::Filesystem,
+        }
+    }
+}
+impl From<std::str::Utf8Error> for Error {
+    fn from(e: std::str::Utf8Error) -> Self {
+        Error {
+            source: e.into(),
+            kind: ErrorKind::Utf8,
+        }
+    }
+}
+impl From<std::string::FromUtf8Error> for Error {
+    fn from(e: std::string::FromUtf8Error) -> Self {
+        Error {
+            source: e.into(),
+            kind: ErrorKind::Utf8,
+        }
+    }
+}
+impl From<emver::ParseError> for Error {
+    fn from(e: emver::ParseError) -> Self {
+        Error {
+            source: e.into(),
+            kind: ErrorKind::ParseVersion,
+        }
+    }
+}
+impl From<rpc_toolkit::url::ParseError> for Error {
+    fn from(e: rpc_toolkit::url::ParseError) -> Self {
+        Error {
+            source: e.into(),
+            kind: ErrorKind::ParseUrl,
+        }
+    }
+}
+impl From<Error> for RpcError {
+    fn from(e: Error) -> Self {
+        RpcError {
+            code: e.kind as i32,
+            message: e.kind.as_str().into(),
+            data: Some(format!("{}", e).into()),
         }
     }
 }
@@ -53,44 +144,34 @@ pub trait ResultExt<T, E>
 where
     Self: Sized,
 {
-    fn with_code(self, code: i32) -> Result<T, Error>;
-    fn with_ctx<F: FnOnce(&E) -> (Option<i32>, D), D: Display + Send + Sync + 'static>(
+    fn with_kind(self, kind: ErrorKind) -> Result<T, Error>;
+    fn with_ctx<F: FnOnce(&E) -> (ErrorKind, D), D: Display + Send + Sync + 'static>(
         self,
         f: F,
     ) -> Result<T, Error>;
-    fn no_code(self) -> Result<T, Error>;
 }
 impl<T, E> ResultExt<T, E> for Result<T, E>
 where
-    failure::Error: From<E>,
+    anyhow::Error: From<E>,
 {
-    fn with_code(self, code: i32) -> Result<T, Error> {
-        #[cfg(not(feature = "production"))]
-        assert!(code != 0);
+    fn with_kind(self, kind: ErrorKind) -> Result<T, Error> {
         self.map_err(|e| Error {
-            failure: e.into(),
-            code: Some(code),
+            source: e.into(),
+            kind,
         })
     }
 
-    fn with_ctx<F: FnOnce(&E) -> (Option<i32>, D), D: Display + Send + Sync + 'static>(
+    fn with_ctx<F: FnOnce(&E) -> (ErrorKind, D), D: Display + Send + Sync + 'static>(
         self,
         f: F,
     ) -> Result<T, Error> {
         self.map_err(|e| {
-            let (code, ctx) = f(&e);
-            let failure = failure::Error::from(e).context(ctx);
+            let (kind, ctx) = f(&e);
+            let source = anyhow::Error::from(e).context(ctx);
             Error {
-                code,
-                failure: failure.into(),
+                kind,
+                source: source.into(),
             }
-        })
-    }
-
-    fn no_code(self) -> Result<T, Error> {
-        self.map_err(|e| Error {
-            failure: e.into(),
-            code: None,
         })
     }
 }
@@ -100,8 +181,8 @@ macro_rules! ensure_code {
     ($x:expr, $c:expr, $fmt:expr $(, $arg:expr)*) => {
         if !($x) {
             return Err(crate::Error {
-                failure: format_err!($fmt, $($arg, )*),
-                code: Some($c),
+                source: anyhow::anyhow!($fmt, $($arg, )*),
+                kind: $c,
             });
         }
     };

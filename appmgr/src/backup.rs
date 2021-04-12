@@ -3,18 +3,14 @@ use std::path::Path;
 
 use argon2::Config;
 use emver::Version;
-use futures::try_join;
-use futures::TryStreamExt;
+use futures::{try_join, TryStreamExt};
 use rand::Rng;
 use serde::Serialize;
+use tokio_stream::wrappers::LinesStream;
 
-use crate::util::from_yaml_async_reader;
-use crate::util::to_yaml_async_writer;
-use crate::util::Invoke;
-use crate::util::PersistencePath;
+use crate::util::{from_yaml_async_reader, to_yaml_async_writer, Invoke, PersistencePath};
 use crate::version::VersionT;
-use crate::Error;
-use crate::ResultExt;
+use crate::{Error, ResultExt};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -31,7 +27,7 @@ pub async fn create_backup<P: AsRef<Path>>(
     let path = tokio::fs::canonicalize(path).await?;
     crate::ensure_code!(
         path.is_dir(),
-        crate::error::FILESYSTEM_ERROR,
+        crate::ErrorKind::Filesystem,
         "Backup Path Must Be Directory"
     );
     let metadata_path = path.join("metadata.yaml");
@@ -50,8 +46,8 @@ pub async fn create_backup<P: AsRef<Path>>(
         f.read_to_string(&mut hash).await?;
         crate::ensure_code!(
             argon2::verify_encoded(&hash, password.as_bytes())
-                .with_code(crate::error::INVALID_BACKUP_PASSWORD)?,
-            crate::error::INVALID_BACKUP_PASSWORD,
+                .with_kind(crate::ErrorKind::InvalidPassword)?,
+            crate::ErrorKind::InvalidPassword,
             "Invalid Backup Decryption Password"
         );
     }
@@ -80,17 +76,18 @@ pub async fn create_backup<P: AsRef<Path>>(
         let ignore_path = volume_path.join(".backupignore");
         if ignore_path.is_file() {
             use tokio::io::AsyncBufReadExt;
-            tokio::io::BufReader::new(tokio::fs::File::open(ignore_path).await?)
-                .lines()
-                .try_filter(|l| futures::future::ready(!l.is_empty()))
-                .try_collect()
-                .await?
+            LinesStream::new(
+                tokio::io::BufReader::new(tokio::fs::File::open(ignore_path).await?).lines(),
+            )
+            .try_filter(|l| futures::future::ready(!l.is_empty()))
+            .try_collect()
+            .await?
         } else {
             Vec::new()
         }
     } else {
-        return Err(format_err!("Volume For {} Does Not Exist", app_id))
-            .with_code(crate::error::NOT_FOUND);
+        return Err(anyhow::anyhow!("Volume For {} Does Not Exist", app_id))
+            .with_kind(crate::ErrorKind::NotFound);
     };
     let running = status.status == crate::apps::DockerStatus::Running;
     if running {
@@ -111,13 +108,13 @@ pub async fn create_backup<P: AsRef<Path>>(
         .env("PASSPHRASE", password)
         .arg(volume_path)
         .arg(format!("file://{}", data_path.display()))
-        .invoke("Duplicity")
+        .invoke(crate::ErrorKind::Duplicity)
         .await;
     let tor_res = tokio::process::Command::new("duplicity")
         .env("PASSPHRASE", password)
         .arg(hidden_service_path)
         .arg(format!("file://{}", tor_path.display()))
-        .invoke("Duplicity")
+        .invoke(crate::ErrorKind::Duplicity)
         .await;
     if running {
         if crate::apps::info(&app_id).await?.needs_restart {
@@ -140,7 +137,7 @@ pub async fn restore_backup<P: AsRef<Path>>(
     let path = tokio::fs::canonicalize(path).await?;
     crate::ensure_code!(
         path.is_dir(),
-        crate::error::FILESYSTEM_ERROR,
+        crate::ErrorKind::Filesystem,
         "Backup Path Must Be Directory"
     );
     let metadata_path = path.join("metadata.yaml");
@@ -159,8 +156,8 @@ pub async fn restore_backup<P: AsRef<Path>>(
         f.read_to_string(&mut hash).await?;
         crate::ensure_code!(
             argon2::verify_encoded(&hash, password.as_bytes())
-                .with_code(crate::error::INVALID_BACKUP_PASSWORD)?,
-            crate::error::INVALID_BACKUP_PASSWORD,
+                .with_kind(crate::ErrorKind::InvalidPassword)?,
+            crate::ErrorKind::InvalidPassword,
             "Invalid Backup Decryption Password"
         );
     }
@@ -185,16 +182,18 @@ pub async fn restore_backup<P: AsRef<Path>>(
         .arg(format!("file://{}", tor_path.display()))
         .arg(&hidden_service_path);
 
-    let (data_output, tor_output) = try_join!(data_cmd.status(), tor_cmd.status())?;
+    let (data_output, tor_output) = try_join!(data_cmd.output(), tor_cmd.output())?;
     crate::ensure_code!(
-        data_output.success(),
-        crate::error::GENERAL_ERROR,
-        "Duplicity Error"
+        data_output.status.success(),
+        crate::ErrorKind::Duplicity,
+        "{}",
+        String::from_utf8(data_output.stderr)?
     );
     crate::ensure_code!(
-        tor_output.success(),
-        crate::error::GENERAL_ERROR,
-        "Duplicity Error"
+        tor_output.status.success(),
+        crate::ErrorKind::Duplicity,
+        "{}",
+        String::from_utf8(tor_output.stderr)?
     );
 
     // Fix the tor address in apps.yaml
@@ -241,7 +240,7 @@ pub async fn restore_backup<P: AsRef<Path>>(
         .status()?;
     crate::ensure_code!(
         svc_exit.success(),
-        crate::error::GENERAL_ERROR,
+        crate::ErrorKind::Nginx,
         "Failed to Reload Nginx: {}",
         svc_exit
             .code()

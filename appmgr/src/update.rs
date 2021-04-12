@@ -2,7 +2,6 @@ use linear_map::LinearMap;
 
 use crate::dependencies::{DependencyError, TaggedDependencyError};
 use crate::Error;
-use crate::ResultExt as _;
 
 pub async fn update(
     name_version: &str,
@@ -13,8 +12,7 @@ pub async fn update(
     let version_req = name_version_iter
         .next()
         .map(|v| v.parse())
-        .transpose()
-        .no_code()?
+        .transpose()?
         .unwrap_or_else(emver::VersionRange::any);
     let version = crate::registry::version(name, &version_req).await?;
     let mut res = LinearMap::new();

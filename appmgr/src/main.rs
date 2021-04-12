@@ -9,16 +9,18 @@ use embassy::*;
 
 #[tokio::main]
 async fn main() {
-    match inner_main().await {
-        Ok(()) => (),
-        Err(e) => {
-            eprintln!("{}", e.failure);
-            log::warn!("{:?}", e.failure);
-            std::process::exit(e.code.unwrap_or(1));
-        }
-    }
+    todo!()
+    // match inner_main().await {
+    //     Ok(()) => (),
+    //     Err(e) => {
+    //         eprintln!("{}", e.source);
+    //         log::warn!("{:?}", e.source);
+    //         std::process::exit(e.kind as i32);
+    //     }
+    // }
 }
 
+#[cfg(feature = "disabled")]
 async fn inner_main() -> Result<(), Error> {
     simple_logging::log_to_stderr(log::LevelFilter::Info);
     #[cfg(not(feature = "portable"))]
@@ -876,18 +878,18 @@ async fn inner_main() -> Result<(), Error> {
                 if sub_m.is_present("pretty") {
                     println!(
                         "{}",
-                        serde_json::to_string_pretty(&res).with_code(crate::error::SERDE_ERROR)?
+                        serde_json::to_string_pretty(&res).with_kind(crate::error::SERDE_ERROR)?
                     );
                 } else {
                     println!(
                         "{}",
-                        serde_json::to_string(&res).with_code(crate::error::SERDE_ERROR)?
+                        serde_json::to_string(&res).with_kind(crate::error::SERDE_ERROR)?
                     );
                 }
             } else if sub_m.is_present("yaml") {
                 println!(
                     "{}",
-                    serde_yaml::to_string(&res).with_code(crate::error::SERDE_ERROR)?
+                    serde_yaml::to_string(&res).with_kind(crate::error::SERDE_ERROR)?
                 );
             } else if !res.is_empty() {
                 use prettytable::{Cell, Row, Table};
@@ -924,18 +926,18 @@ async fn inner_main() -> Result<(), Error> {
                 if sub_m.is_present("pretty") {
                     println!(
                         "{}",
-                        serde_json::to_string_pretty(&res).with_code(crate::error::SERDE_ERROR)?
+                        serde_json::to_string_pretty(&res).with_kind(crate::error::SERDE_ERROR)?
                     );
                 } else {
                     println!(
                         "{}",
-                        serde_json::to_string(&res).with_code(crate::error::SERDE_ERROR)?
+                        serde_json::to_string(&res).with_kind(crate::error::SERDE_ERROR)?
                     );
                 }
             } else if sub_m.is_present("yaml") {
                 println!(
                     "{}",
-                    serde_yaml::to_string(&res).with_code(crate::error::SERDE_ERROR)?
+                    serde_yaml::to_string(&res).with_kind(crate::error::SERDE_ERROR)?
                 );
             } else if !res.is_empty() {
                 use prettytable::{Cell, Row, Table};
@@ -999,18 +1001,18 @@ async fn inner_main() -> Result<(), Error> {
                 if sub_m.is_present("pretty") {
                     println!(
                         "{}",
-                        serde_json::to_string_pretty(&res).with_code(crate::error::SERDE_ERROR)?
+                        serde_json::to_string_pretty(&res).with_kind(crate::error::SERDE_ERROR)?
                     );
                 } else {
                     println!(
                         "{}",
-                        serde_json::to_string(&res).with_code(crate::error::SERDE_ERROR)?
+                        serde_json::to_string(&res).with_kind(crate::error::SERDE_ERROR)?
                     );
                 }
             } else if sub_m.is_present("yaml") {
                 println!(
                     "{}",
-                    serde_yaml::to_string(&res).with_code(crate::error::SERDE_ERROR)?
+                    serde_yaml::to_string(&res).with_kind(crate::error::SERDE_ERROR)?
                 );
             } else if !res.needs_restart.is_empty() || !res.stopped.is_empty() {
                 use prettytable::{Cell, Row, Table};
@@ -1049,18 +1051,18 @@ async fn inner_main() -> Result<(), Error> {
                 if sub_m.is_present("pretty") {
                     println!(
                         "{}",
-                        serde_json::to_string_pretty(&res).with_code(crate::error::SERDE_ERROR)?
+                        serde_json::to_string_pretty(&res).with_kind(crate::error::SERDE_ERROR)?
                     );
                 } else {
                     println!(
                         "{}",
-                        serde_json::to_string(&res).with_code(crate::error::SERDE_ERROR)?
+                        serde_json::to_string(&res).with_kind(crate::error::SERDE_ERROR)?
                     );
                 }
             } else if sub_m.is_present("yaml") {
                 println!(
                     "{}",
-                    serde_yaml::to_string(&res).with_code(crate::error::SERDE_ERROR)?
+                    serde_yaml::to_string(&res).with_kind(crate::error::SERDE_ERROR)?
                 );
             } else if !res.0.is_empty() {
                 use prettytable::{Cell, Row, Table};
@@ -1098,18 +1100,18 @@ async fn inner_main() -> Result<(), Error> {
                 if sub_m.is_present("pretty") {
                     println!(
                         "{}",
-                        serde_json::to_string_pretty(&res).with_code(crate::error::SERDE_ERROR)?
+                        serde_json::to_string_pretty(&res).with_kind(crate::error::SERDE_ERROR)?
                     );
                 } else {
                     println!(
                         "{}",
-                        serde_json::to_string(&res).with_code(crate::error::SERDE_ERROR)?
+                        serde_json::to_string(&res).with_kind(crate::error::SERDE_ERROR)?
                     );
                 }
             } else if sub_m.is_present("yaml") {
                 println!(
                     "{}",
-                    serde_yaml::to_string(&res).with_code(crate::error::SERDE_ERROR)?
+                    serde_yaml::to_string(&res).with_kind(crate::error::SERDE_ERROR)?
                 );
             } else if !res.needs_restart.is_empty() || !res.stopped.is_empty() {
                 use prettytable::{Cell, Row, Table};
@@ -1149,18 +1151,18 @@ async fn inner_main() -> Result<(), Error> {
                 if sub_m.is_present("pretty") {
                     println!(
                         "{}",
-                        serde_json::to_string_pretty(&res).with_code(crate::error::SERDE_ERROR)?
+                        serde_json::to_string_pretty(&res).with_kind(crate::error::SERDE_ERROR)?
                     );
                 } else {
                     println!(
                         "{}",
-                        serde_json::to_string(&res).with_code(crate::error::SERDE_ERROR)?
+                        serde_json::to_string(&res).with_kind(crate::error::SERDE_ERROR)?
                     );
                 }
             } else if sub_m.is_present("yaml") {
                 println!(
                     "{}",
-                    serde_yaml::to_string(&res).with_code(crate::error::SERDE_ERROR)?
+                    serde_yaml::to_string(&res).with_kind(crate::error::SERDE_ERROR)?
                 );
             } else if !res.is_empty() {
                 use prettytable::{Cell, Row, Table};
@@ -1223,31 +1225,31 @@ async fn inner_main() -> Result<(), Error> {
                         println!(
                             "{}",
                             serde_json::to_string_pretty(&info.status)
-                                .with_code(crate::error::SERDE_ERROR)?
+                                .with_kind(crate::error::SERDE_ERROR)?
                         );
                     } else if sub_m.is_present("only-manifest") {
                         println!(
                             "{}",
                             serde_json::to_string_pretty(&info.manifest)
-                                .with_code(crate::error::SERDE_ERROR)?
+                                .with_kind(crate::error::SERDE_ERROR)?
                         );
                     } else if sub_m.is_present("only-config") {
                         println!(
                             "{}",
                             serde_json::to_string_pretty(&info.config)
-                                .with_code(crate::error::SERDE_ERROR)?
+                                .with_kind(crate::error::SERDE_ERROR)?
                         );
                     } else if sub_m.is_present("only-dependencies") {
                         println!(
                             "{}",
                             serde_json::to_string_pretty(&info.dependencies)
-                                .with_code(crate::error::SERDE_ERROR)?
+                                .with_kind(crate::error::SERDE_ERROR)?
                         );
                     } else {
                         println!(
                             "{}",
                             serde_json::to_string_pretty(&info)
-                                .with_code(crate::error::SERDE_ERROR)?
+                                .with_kind(crate::error::SERDE_ERROR)?
                         );
                     }
                 } else {
@@ -1255,30 +1257,30 @@ async fn inner_main() -> Result<(), Error> {
                         println!(
                             "{}",
                             serde_json::to_string(&info.status)
-                                .with_code(crate::error::SERDE_ERROR)?
+                                .with_kind(crate::error::SERDE_ERROR)?
                         );
                     } else if sub_m.is_present("only-manifest") {
                         println!(
                             "{}",
                             serde_json::to_string(&info.manifest)
-                                .with_code(crate::error::SERDE_ERROR)?
+                                .with_kind(crate::error::SERDE_ERROR)?
                         );
                     } else if sub_m.is_present("only-config") {
                         println!(
                             "{}",
                             serde_json::to_string(&info.config)
-                                .with_code(crate::error::SERDE_ERROR)?
+                                .with_kind(crate::error::SERDE_ERROR)?
                         );
                     } else if sub_m.is_present("only-dependencies") {
                         println!(
                             "{}",
                             serde_json::to_string(&info.dependencies)
-                                .with_code(crate::error::SERDE_ERROR)?
+                                .with_kind(crate::error::SERDE_ERROR)?
                         );
                     } else {
                         println!(
                             "{}",
-                            serde_json::to_string(&info).with_code(crate::error::SERDE_ERROR)?
+                            serde_json::to_string(&info).with_kind(crate::error::SERDE_ERROR)?
                         );
                     }
                 }
@@ -1286,29 +1288,29 @@ async fn inner_main() -> Result<(), Error> {
                 if sub_m.is_present("only-status") {
                     println!(
                         "{}",
-                        serde_yaml::to_string(&info.status).with_code(crate::error::SERDE_ERROR)?
+                        serde_yaml::to_string(&info.status).with_kind(crate::error::SERDE_ERROR)?
                     );
                 } else if sub_m.is_present("only-manifest") {
                     println!(
                         "{}",
                         serde_yaml::to_string(&info.manifest)
-                            .with_code(crate::error::SERDE_ERROR)?
+                            .with_kind(crate::error::SERDE_ERROR)?
                     );
                 } else if sub_m.is_present("only-config") {
                     println!(
                         "{}",
-                        serde_yaml::to_string(&info.config).with_code(crate::error::SERDE_ERROR)?
+                        serde_yaml::to_string(&info.config).with_kind(crate::error::SERDE_ERROR)?
                     );
                 } else if sub_m.is_present("only-dependencies") {
                     println!(
                         "{}",
                         serde_yaml::to_string(&info.dependencies)
-                            .with_code(crate::error::SERDE_ERROR)?
+                            .with_kind(crate::error::SERDE_ERROR)?
                     );
                 } else {
                     println!(
                         "{}",
-                        serde_yaml::to_string(&info).with_code(crate::error::SERDE_ERROR)?
+                        serde_yaml::to_string(&info).with_kind(crate::error::SERDE_ERROR)?
                     );
                 }
             }
@@ -1330,18 +1332,18 @@ async fn inner_main() -> Result<(), Error> {
                 if sub_m.is_present("pretty") {
                     println!(
                         "{}",
-                        serde_json::to_string_pretty(&info).with_code(crate::error::SERDE_ERROR)?
+                        serde_json::to_string_pretty(&info).with_kind(crate::error::SERDE_ERROR)?
                     );
                 } else {
                     println!(
                         "{}",
-                        serde_json::to_string(&info).with_code(crate::error::SERDE_ERROR)?
+                        serde_json::to_string(&info).with_kind(crate::error::SERDE_ERROR)?
                     );
                 }
             } else if sub_m.is_present("yaml") {
                 println!(
                     "{}",
-                    serde_yaml::to_string(&info).with_code(crate::error::SERDE_ERROR)?
+                    serde_yaml::to_string(&info).with_kind(crate::error::SERDE_ERROR)?
                 );
             } else if !info.is_empty() {
                 use prettytable::{Cell, Row, Table};
@@ -1432,18 +1434,18 @@ async fn inner_main() -> Result<(), Error> {
                 if sub_m.is_present("pretty") {
                     println!(
                         "{}",
-                        serde_json::to_string_pretty(&info).with_code(crate::error::SERDE_ERROR)?
+                        serde_json::to_string_pretty(&info).with_kind(crate::error::SERDE_ERROR)?
                     );
                 } else {
                     println!(
                         "{}",
-                        serde_json::to_string(&info).with_code(crate::error::SERDE_ERROR)?
+                        serde_json::to_string(&info).with_kind(crate::error::SERDE_ERROR)?
                     );
                 }
             } else if sub_m.is_present("yaml") {
                 println!(
                     "{}",
-                    serde_yaml::to_string(&info).with_code(crate::error::SERDE_ERROR)?
+                    serde_yaml::to_string(&info).with_kind(crate::error::SERDE_ERROR)?
                 );
             } else if !info.is_empty() {
                 use prettytable::{Cell, Row, Table};
@@ -1475,18 +1477,18 @@ async fn inner_main() -> Result<(), Error> {
                 if sub_m.is_present("pretty") {
                     println!(
                         "{}",
-                        serde_json::to_string_pretty(&info).with_code(crate::error::SERDE_ERROR)?
+                        serde_json::to_string_pretty(&info).with_kind(crate::error::SERDE_ERROR)?
                     );
                 } else {
                     println!(
                         "{}",
-                        serde_json::to_string(&info).with_code(crate::error::SERDE_ERROR)?
+                        serde_json::to_string(&info).with_kind(crate::error::SERDE_ERROR)?
                     );
                 }
             } else if sub_m.is_present("yaml") {
                 println!(
                     "{}",
-                    serde_yaml::to_string(&info).with_code(crate::error::SERDE_ERROR)?
+                    serde_yaml::to_string(&info).with_kind(crate::error::SERDE_ERROR)?
                 );
             } else if let serde_yaml::Value::Mapping(map) = info {
                 use prettytable::{Cell, Row, Table};
@@ -1497,14 +1499,14 @@ async fn inner_main() -> Result<(), Error> {
                         serde_yaml::Value::Null => "null".to_owned(),
                         serde_yaml::Value::Number(k) => format!("{}", k),
                         serde_yaml::Value::String(k) => k,
-                        k => serde_yaml::to_string(&k).with_code(crate::error::SERDE_ERROR)?,
+                        k => serde_yaml::to_string(&k).with_kind(crate::error::SERDE_ERROR)?,
                     };
                     let vs = match v {
                         serde_yaml::Value::Bool(v) => format!("{}", v),
                         serde_yaml::Value::Null => "null".to_owned(),
                         serde_yaml::Value::Number(v) => format!("{}", v),
                         serde_yaml::Value::String(v) => v,
-                        v => serde_yaml::to_string(&v).with_code(crate::error::SERDE_ERROR)?,
+                        v => serde_yaml::to_string(&v).with_kind(crate::error::SERDE_ERROR)?,
                     };
                     table.add_row(Row::new(vec![Cell::new(&ks), Cell::new(&vs)]));
                 }
@@ -1520,18 +1522,18 @@ async fn inner_main() -> Result<(), Error> {
                         println!(
                             "{}",
                             serde_json::to_string_pretty(&info)
-                                .with_code(crate::error::SERDE_ERROR)?
+                                .with_kind(crate::error::SERDE_ERROR)?
                         );
                     } else {
                         println!(
                             "{}",
-                            serde_json::to_string(&info).with_code(crate::error::SERDE_ERROR)?
+                            serde_json::to_string(&info).with_kind(crate::error::SERDE_ERROR)?
                         );
                     }
                 } else if sub_sub_m.is_present("yaml") {
                     println!(
                         "{}",
-                        serde_yaml::to_string(&info).with_code(crate::error::SERDE_ERROR)?
+                        serde_yaml::to_string(&info).with_kind(crate::error::SERDE_ERROR)?
                     );
                 } else {
                     todo!()
@@ -1589,18 +1591,14 @@ async fn inner_main() -> Result<(), Error> {
                         .filter(|a| &a.id == &action_id)
                         .next()
                         .ok_or_else(|| {
-                            failure::format_err!(
-                                "action {} does not exist for {}",
-                                action_id,
-                                man.id
-                            )
+                            anyhow::anyhow!("action {} does not exist for {}", action_id, man.id)
                         })
-                        .with_code(error::NOT_FOUND)?
+                        .with_kind(error::NOT_FOUND)?
                         .perform(&man.id)
                         .await
                         .map(serde_json::Value::String)
                 ))
-                .with_code(error::SERDE_ERROR)?
+                .with_kind(error::SERDE_ERROR)?
             )
         }
         ("pack", Some(sub_m)) => {
@@ -1627,19 +1625,19 @@ async fn inner_main() -> Result<(), Error> {
                             println!(
                                 "{}",
                                 serde_json::to_string_pretty(&info.manifest)
-                                    .with_code(crate::error::SERDE_ERROR)?
+                                    .with_kind(crate::error::SERDE_ERROR)?
                             );
                         } else if sub_sub_m.is_present("only-config") {
                             println!(
                                 "{}",
                                 serde_json::to_string_pretty(&info.config)
-                                    .with_code(crate::error::SERDE_ERROR)?
+                                    .with_kind(crate::error::SERDE_ERROR)?
                             );
                         } else {
                             println!(
                                 "{}",
                                 serde_json::to_string_pretty(&info)
-                                    .with_code(crate::error::SERDE_ERROR)?
+                                    .with_kind(crate::error::SERDE_ERROR)?
                             );
                         }
                     } else {
@@ -1647,19 +1645,19 @@ async fn inner_main() -> Result<(), Error> {
                             println!(
                                 "{}",
                                 serde_json::to_string(&info.manifest)
-                                    .with_code(crate::error::SERDE_ERROR)?
+                                    .with_kind(crate::error::SERDE_ERROR)?
                             );
                         } else if sub_sub_m.is_present("only-config") {
                             println!(
                                 "{}",
                                 serde_json::to_string(&info.config)
-                                    .with_code(crate::error::SERDE_ERROR)?
+                                    .with_kind(crate::error::SERDE_ERROR)?
                             );
                         } else {
                             println!(
                                 "{}",
                                 serde_json::to_string(&info)
-                                    .with_code(crate::error::SERDE_ERROR)?
+                                    .with_kind(crate::error::SERDE_ERROR)?
                             );
                         }
                     }
@@ -1668,18 +1666,18 @@ async fn inner_main() -> Result<(), Error> {
                         println!(
                             "{}",
                             serde_yaml::to_string(&info.manifest)
-                                .with_code(crate::error::SERDE_ERROR)?
+                                .with_kind(crate::error::SERDE_ERROR)?
                         );
                     } else if sub_sub_m.is_present("only-config") {
                         println!(
                             "{}",
                             serde_yaml::to_string(&info.config)
-                                .with_code(crate::error::SERDE_ERROR)?
+                                .with_kind(crate::error::SERDE_ERROR)?
                         );
                     } else {
                         println!(
                             "{}",
-                            serde_yaml::to_string(&info).with_code(crate::error::SERDE_ERROR)?
+                            serde_yaml::to_string(&info).with_kind(crate::error::SERDE_ERROR)?
                         );
                     }
                 }
@@ -1697,7 +1695,7 @@ async fn inner_main() -> Result<(), Error> {
             let idx = crate::index::index(Path::new(sub_m.value_of("DIR").unwrap())).await?;
             println!(
                 "{}",
-                serde_yaml::to_string(&idx).with_code(crate::error::SERDE_ERROR)?
+                serde_yaml::to_string(&idx).with_kind(crate::error::SERDE_ERROR)?
             );
         }
         _ => {

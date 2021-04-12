@@ -1,7 +1,8 @@
 use std::path::Path;
 
 use futures::future::{BoxFuture, FutureExt};
-use linear_map::{set::LinearSet, LinearMap};
+use linear_map::set::LinearSet;
+use linear_map::LinearMap;
 
 use crate::dependencies::{DependencyError, TaggedDependencyError};
 use crate::util::{from_yaml_async_reader, PersistencePath, YamlUpdateHandle};
@@ -38,7 +39,7 @@ pub async fn start_app(name: &str, update_metadata: bool) -> Result<(), Error> {
             .await?;
         crate::ensure_code!(
             output.status.success(),
-            crate::error::DOCKER_ERROR,
+            crate::ErrorKind::Docker,
             "Failed to Start Application: {}",
             std::str::from_utf8(&output.stderr).unwrap_or("Unknown Error")
         );
@@ -85,7 +86,7 @@ pub async fn stop_app(
             .await?;
         crate::ensure_code!(
             output.status.success(),
-            crate::error::DOCKER_ERROR,
+            crate::ErrorKind::Docker,
             "Failed to Stop Application: {}",
             std::str::from_utf8(&output.stderr).unwrap_or("Unknown Error")
         );
@@ -168,7 +169,7 @@ pub async fn pause_app(name: &str) -> Result<(), Error> {
         .await?;
     crate::ensure_code!(
         output.status.success(),
-        crate::error::DOCKER_ERROR,
+        crate::ErrorKind::Docker,
         "Failed to Pause Application: {}",
         std::str::from_utf8(&output.stderr).unwrap_or("Unknown Error")
     );
@@ -197,7 +198,7 @@ pub async fn resume_app(name: &str) -> Result<(), Error> {
         .await?;
     crate::ensure_code!(
         output.status.success(),
-        crate::error::DOCKER_ERROR,
+        crate::ErrorKind::Docker,
         "Failed to Resume Application: {}",
         std::str::from_utf8(&output.stderr).unwrap_or("Unknown Error")
     );

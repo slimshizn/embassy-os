@@ -1,6 +1,4 @@
 #[macro_use]
-extern crate failure;
-#[macro_use]
 extern crate pest_derive;
 
 pub const TOR_RC: &'static str = "/root/appmgr/tor/torrc";
@@ -46,7 +44,7 @@ pub mod version;
 
 pub use config::{configure, Config};
 pub use control::{restart_app, start_app, stop_app, stop_dependents};
-pub use error::{Error, ResultExt};
+pub use error::{Error, ErrorKind, ResultExt};
 pub use install::{install_name, install_path, install_url};
 pub use logs::{logs, notifications, stats, LogOptions};
 pub use pack::{pack, verify};

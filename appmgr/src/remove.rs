@@ -1,11 +1,9 @@
-use crate::failure::ResultExt;
 use std::path::Path;
 
 use linear_map::LinearMap;
 
 use crate::dependencies::{DependencyError, TaggedDependencyError};
-use crate::Error;
-use crate::ResultExt as _;
+use crate::{Error, ResultExt as _};
 
 pub async fn remove(
     name: &str,
@@ -60,8 +58,12 @@ pub async fn remove(
         let metadata_path = Path::new(crate::PERSISTENCE_DIR).join("apps").join(name);
         tokio::fs::remove_dir_all(&metadata_path)
             .await
-            .with_context(|e| format!("rm {}: {}", metadata_path.display(), e))
-            .with_code(crate::error::FILESYSTEM_ERROR)?;
+            .with_ctx(|_| {
+                (
+                    crate::ErrorKind::Filesystem,
+                    format!("rm {}", metadata_path.display()),
+                )
+            })?;
         log::info!("Unbinding shared filesystem.");
         let installed_apps = crate::apps::list_info().await?;
         for (dep, _) in manifest.dependencies.0.iter() {
@@ -90,10 +92,12 @@ pub async fn remove(
                 if let Some(shared) = dep_man.shared {
                     let path = Path::new(crate::VOLUMES).join(dep).join(&shared).join(name);
                     if path.exists() {
-                        tokio::fs::remove_dir_all(&path)
-                            .await
-                            .with_context(|e| format!("rm {}: {}", path.display(), e))
-                            .with_code(crate::error::FILESYSTEM_ERROR)?;
+                        tokio::fs::remove_dir_all(&path).await.with_ctx(|_| {
+                            (
+                                crate::ErrorKind::Filesystem,
+                                format!("rm {}", path.display()),
+                            )
+                        })?;
                     }
                 }
             } else {
@@ -128,8 +132,12 @@ pub async fn remove(
         let volume_path = Path::new(crate::VOLUMES).join(name);
         tokio::fs::remove_dir_all(&volume_path)
             .await
-            .with_context(|e| format!("rm {}: {}", volume_path.display(), e))
-            .with_code(crate::error::FILESYSTEM_ERROR)?;
+            .with_ctx(|_| {
+                (
+                    crate::ErrorKind::Filesystem,
+                    format!("rm {}", volume_path.display()),
+                )
+            })?;
         log::info!("Pruning unused docker images.");
         crate::ensure_code!(
             std::process::Command::new("docker")
@@ -141,7 +149,7 @@ pub async fn remove(
                 })
                 .status()?
                 .success(),
-            crate::error::DOCKER_ERROR,
+            crate::ErrorKind::Docker,
             "Failed to Prune Docker Images"
         );
     };

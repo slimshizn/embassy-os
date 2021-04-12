@@ -1,16 +1,12 @@
 [package]
 authors = ["Aiden McClelland <me@drbonez.dev>"]
 edition = "2018"
-name = "appmgr"
+name = "embassy"
 version = "0.2.12"
 
 [lib]
 name = "embassy"
 path = "src/lib.rs"
-
-[[bin]]
-name = "appmgr"
-path = "src/main.rs"
 
 [[bin]]
 name = "embassyd"
@@ -69,7 +65,5 @@ simple-logging = "2.0"
 thiserror = "1.0.24"
 tokio = { version = "1.4.0", features = ["full"] }
 tokio-compat-02 = "0.2.0"
+tokio-stream = { version = "0.1.5", features = ["io-util"] }
 tokio-tar = { git = "https://github.com/dr-bonez/tokio-tar.git", branch = "tokio-1" }
-yajrc = { version = "0.1.0", git = "https://github.com/dr-bonez/yajrc", rev = "c2952a4a21c50f7be6f8003afa37ee77deb66d56" }
-
-failure = "*"

@@ -65,7 +65,7 @@ pub type CompiledReference = Box<
 >;
 pub type Mutator = Box<dyn Fn(&mut Config, &LinearMap<&str, Cow<Config>>) + Send + Sync>;
 pub type CompiledRule = Box<dyn Fn(&Config, &LinearMap<&str, Cow<Config>>) -> bool + Send + Sync>;
-pub type CompiledRuleRes = Result<CompiledRule, failure::Error>;
+pub type CompiledRuleRes = Result<CompiledRule, anyhow::Error>;
 
 #[derive(Clone)]
 pub struct ConfigRule {
@@ -111,9 +111,9 @@ impl ConfigRuleEntry {
         &self,
         cfg: &Config,
         cfgs: &LinearMap<&str, Cow<Config>>,
-    ) -> Result<(), failure::Error> {
+    ) -> Result<(), anyhow::Error> {
         if !(self.rule.compiled)(cfg, cfgs) {
-            failure::bail!("{}", self.description);
+            anyhow::bail!("{}", self.description);
         }
         Ok(())
     }
@@ -308,7 +308,7 @@ impl ConfigRuleEntryWithSuggestions {
         id: &'a str,
         cfg: &mut Config,
         cfgs: &mut LinearMap<&'a str, Cow<Config>>,
-    ) -> Result<(), failure::Error> {
+    ) -> Result<(), anyhow::Error> {
         if self.entry.check(cfg, cfgs).is_err() {
             for suggestion in &self.suggestions {
                 suggestion.apply(id, cfg, cfgs);
@@ -584,7 +584,7 @@ fn compile_var(mut var: Pairs<Rule>) -> CompiledExpr<VarRes<Value>> {
     })
 }
 
-fn compile_var_mut_rec(mut ident: Pairs<Rule>) -> Result<Option<AccessorMut>, failure::Error> {
+fn compile_var_mut_rec(mut ident: Pairs<Rule>) -> Result<Option<AccessorMut>, anyhow::Error> {
     let idx = ident.next();
     Ok(if let Some(idx) = idx {
         let deref: AccessorMut = match idx.as_rule() {
@@ -644,7 +644,7 @@ fn compile_var_mut_rec(mut ident: Pairs<Rule>) -> Result<Option<AccessorMut>, fa
                         })
                     }
                     Rule::list_access_function_any | Rule::list_access_function_all => {
-                        failure::bail!("Any and All are immutable")
+                        anyhow::bail!("Any and All are immutable")
                     }
                     _ => unreachable!(),
                 }
@@ -726,7 +726,7 @@ fn compile_var_mut_rec(mut ident: Pairs<Rule>) -> Result<Option<AccessorMut>, fa
                     _ => unreachable!(),
                 }
             }
-            _ => failure::bail!("invalid token: {:?}", idx.as_rule()),
+            _ => anyhow::bail!("invalid token: {:?}", idx.as_rule()),
         };
         Some(if let Some(rest) = compile_var_mut_rec(ident)? {
             Box::new(move |v, cfgs| deref(v, cfgs).and_then(|v| rest(v, cfgs)))
@@ -738,10 +738,10 @@ fn compile_var_mut_rec(mut ident: Pairs<Rule>) -> Result<Option<AccessorMut>, fa
     })
 }
 
-fn compile_var_mut(mut var: Pairs<Rule>) -> Result<CompiledReference, failure::Error> {
+fn compile_var_mut(mut var: Pairs<Rule>) -> Result<CompiledReference, anyhow::Error> {
     let first_seg = var.next().unwrap();
     if first_seg.as_rule() == Rule::app_id {
-        failure::bail!("Can only assign to relative path");
+        anyhow::bail!("Can only assign to relative path");
     }
     let first_seg_string = first_seg.as_str().to_owned();
     let accessor_mut = compile_var_mut_rec(var)?;
@@ -1054,7 +1054,7 @@ fn compile_value_expr(mut pairs: Pairs<Rule>) -> CompiledExpr<VarRes<Value>> {
     }
 }
 
-fn compile_del_action(mut pairs: Pairs<Rule>) -> Result<Mutator, failure::Error> {
+fn compile_del_action(mut pairs: Pairs<Rule>) -> Result<Mutator, anyhow::Error> {
     let list_mut = compile_var_mut(pairs.next().unwrap().into_inner())?;
     let var = pairs.next().unwrap().as_str().to_owned();
     let predicate = compile_bool_expr(pairs.next().unwrap().into_inner());
@@ -1083,7 +1083,7 @@ fn compile_del_action(mut pairs: Pairs<Rule>) -> Result<Mutator, failure::Error>
     }))
 }
 
-fn compile_push_action(mut pairs: Pairs<Rule>, value: Value) -> Result<Mutator, failure::Error> {
+fn compile_push_action(mut pairs: Pairs<Rule>, value: Value) -> Result<Mutator, anyhow::Error> {
     let list_mut = compile_var_mut(pairs.next().unwrap().into_inner())?;
     Ok(Box::new(move |cfg, cfgs| {
         let vec = match (&list_mut)(cfg, cfgs) {
@@ -1094,7 +1094,7 @@ fn compile_push_action(mut pairs: Pairs<Rule>, value: Value) -> Result<Mutator, 
     }))
 }
 
-fn compile_set_action(var: &str, to: &SetVariant) -> Result<Mutator, failure::Error> {
+fn compile_set_action(var: &str, to: &SetVariant) -> Result<Mutator, anyhow::Error> {
     let mut var = RuleParser::parse(Rule::reference, var)?;
     let get_mut = compile_var_mut(var.next().unwrap().into_inner())?;
     Ok(match to {
@@ -1140,11 +1140,11 @@ pub fn parse_and<T, F: FnOnce(Pairs<Rule>) -> T>(
     Ok(f(pairs))
 }
 
-pub fn compile(rule: &str) -> Result<CompiledRule, failure::Error> {
+pub fn compile(rule: &str) -> Result<CompiledRule, anyhow::Error> {
     parse_and(rule, compile_bool_expr).map_err(From::from)
 }
 
-pub fn compile_expr(expr: &str) -> Result<CompiledExpr<Value>, failure::Error> {
+pub fn compile_expr(expr: &str) -> Result<CompiledExpr<Value>, anyhow::Error> {
     let compiled = compile_value_expr(RuleParser::parse(Rule::value, expr)?);
     Ok(Box::new(move |cfg, cfgs| match compiled(cfg, cfgs) {
         VarRes::Exactly(v) => v,

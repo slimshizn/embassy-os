@@ -2,9 +2,10 @@ use std::os::unix::process::ExitStatusExt;
 use std::process::Stdio;
 
 use linear_map::set::LinearSet;
+use rpc_toolkit::yajrc::RpcError;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, Error as IoError};
-use yajrc::RpcError;
 
+// TODO: now that the whole crate uses JSONRPC, maybe this module shouldn't
 use crate::apps::DockerStatus;
 
 pub const STATUS_NOT_ALLOWED: i32 = -2;
@@ -43,23 +44,19 @@ async fn tee<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
 
 impl Action {
     pub async fn perform(&self, app_id: &str) -> Result<String, RpcError> {
-        let man = crate::apps::manifest(app_id)
-            .await
-            .map_err(failure::Error::from)
-            .map_err(failure::Error::compat)?;
-        let status = crate::apps::status(app_id, true)
-            .await
-            .map_err(failure::Error::from)
-            .map_err(failure::Error::compat)?
-            .status;
+        let man = crate::apps::manifest(app_id).await?;
+        let status = crate::apps::status(app_id, true).await?.status;
         if !self.allowed_statuses.contains(&status) {
             return Err(RpcError {
                 code: STATUS_NOT_ALLOWED,
-                message: format!(
-                    "{} is in status {:?} which is not allowed by {}",
-                    app_id, status, self.id
+                message: "Status Not Allowed".into(),
+                data: Some(
+                    format!(
+                        "{} is in status {:?} which is not allowed by {}",
+                        app_id, status, self.id
+                    )
+                    .into(),
                 ),
-                data: None,
             });
         }
         let mut cmd = if status == DockerStatus::Running {
@@ -70,7 +67,7 @@ impl Action {
             let mut cmd = tokio::process::Command::new("docker");
             let entrypoint = self.command.get(0).ok_or_else(|| RpcError {
                 code: INVALID_COMMAND,
-                message: "Command Cannot Be Empty".to_owned(),
+                message: "Command Cannot Be Empty".into(),
                 data: None,
             })?;
             cmd.arg("run")
@@ -108,8 +105,8 @@ impl Action {
                 code: status
                     .code()
                     .unwrap_or_else(|| status.signal().unwrap_or(0) + 128),
-                message: String::from_utf8(stderr)?,
-                data: None,
+                message: "Command Failed".into(),
+                data: Some(String::from_utf8(stderr)?.into()),
             })
         }
     }

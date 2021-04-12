@@ -7,14 +7,14 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use itertools::Itertools;
-use linear_map::{set::LinearSet, LinearMap};
+use linear_map::set::LinearSet;
+use linear_map::LinearMap;
 use rand::{CryptoRng, Rng};
 use regex::Regex;
 
 use super::util::{self, CharSet, NumRange, UniqueBy, STATIC_NULL};
 use super::value::{Config, Value};
 use super::{MatchError, NoMatchWithPath, TimeoutError};
-
 use crate::config::ConfigurationError;
 use crate::manifest::ManifestLatest;
 use crate::util::PersistencePath;
@@ -52,7 +52,7 @@ pub trait ValueSpec {
 // and 'HasDefaultSpec'.
 pub trait DefaultableWith {
     type DefaultSpec: Sync;
-    type Error: failure::Fail;
+    type Error: std::error::Error;
 
     fn gen_with<R: Rng + CryptoRng + Sync + Send + Sync + Send>(
         &self,
@@ -77,7 +77,7 @@ pub trait Defaultable {
 impl<T, E> Defaultable for T
 where
     T: HasDefaultSpec + DefaultableWith<Error = E> + Sync,
-    E: failure::Fail,
+    E: std::error::Error,
 {
     type Error = E;
 
@@ -1386,8 +1386,8 @@ impl AppPointerSpec {
                         .map
                         .get(&self.app_id)
                         .ok_or(ConfigurationError::SystemError(crate::Error::new(
-                            failure::format_err!("App Not Found"),
-                            Some(crate::error::NOT_FOUND),
+                            anyhow::anyhow!("Service Not Found"),
+                            crate::ErrorKind::NotFound,
                         )))?;
                 Ok(
                     crate::tor::read_tor_key(&self.app_id, service.hidden_service_version, None)
@@ -1867,6 +1867,8 @@ mod test {
             install_alert: None,
             restore_alert: None,
             uninstall_alert: None,
+            start_alert: None,
+            actions: Vec::new(),
         })
         .unwrap();
         let config = spec

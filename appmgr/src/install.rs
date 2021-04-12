@@ -3,19 +3,13 @@ use std::ffi::{OsStr, OsString};
 use std::marker::Unpin;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
-use std::sync::{
-    atomic::{self, AtomicBool, AtomicU64},
-    Arc,
-};
-use std::task::Context;
-use std::task::Poll;
+use std::sync::atomic::{self, AtomicBool, AtomicU64};
+use std::sync::Arc;
+use std::task::{Context, Poll};
 use std::time::Duration;
 
-use failure::ResultExt as _;
-use futures::stream::StreamExt;
-use futures::stream::TryStreamExt;
-use tokio::io::AsyncWriteExt;
-use tokio::io::{AsyncRead, ReadBuf};
+use futures::stream::{StreamExt, TryStreamExt};
+use tokio::io::{AsyncRead, AsyncWriteExt, ReadBuf};
 use tokio_compat_02::FutureExt;
 use tokio_tar as tar;
 
@@ -25,12 +19,17 @@ use crate::util::{from_cbor_async_reader, to_yaml_async_writer, AsyncCompat, Per
 use crate::version::VersionT;
 use crate::ResultExt as _;
 
-#[derive(Fail, Debug, Clone)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum Error {
-    #[fail(display = "Package File Invalid or Corrupted: {}", _0)]
+    #[error("Package File Invalid or Corrupted: {0}")]
     CorruptedPkgFile(&'static str),
-    #[fail(display = "Invalid File Name")]
+    #[error("Invalid File Name")]
     InvalidFileName,
+}
+impl From<Error> for crate::Error {
+    fn from(e: Error) -> Self {
+        crate::Error::new(e, crate::ErrorKind::ParseS9pk)
+    }
 }
 
 pub async fn install_name(name_version: &str, use_cache: bool) -> Result<(), crate::Error> {
@@ -44,14 +43,13 @@ pub async fn install_name(name_version: &str, use_cache: bool) -> Result<(), cra
             .as_os_str()
             .to_str()
             .ok_or(Error::InvalidFileName)
-            .with_code(crate::error::FILESYSTEM_ERROR)?,
+            .with_kind(crate::ErrorKind::Filesystem)?,
         Some(name),
     )
     .await?;
     tokio::fs::remove_file(&tmp_path)
         .await
-        .with_context(|e| format!("{}: {}", tmp_path.display(), e))
-        .with_code(crate::error::FILESYSTEM_ERROR)?;
+        .with_ctx(|_| (crate::ErrorKind::Filesystem, tmp_path.display().to_string()))?;
     Ok(())
 }
 
@@ -79,7 +77,7 @@ where
 pub async fn download_name(name_version: &str) -> Result<PathBuf, crate::Error> {
     let mut split = name_version.split("@");
     let name = split.next().unwrap();
-    let req: Option<emver::VersionRange> = split.next().map(|a| a.parse()).transpose().no_code()?;
+    let req: Option<emver::VersionRange> = split.next().map(|a| a.parse()).transpose()?;
     if let Some(req) = req {
         download(
             &format!("{}/{}.s9pk?spec={}", &*crate::APP_REGISTRY_URL, name, req),
@@ -96,14 +94,14 @@ pub async fn download_name(name_version: &str) -> Result<PathBuf, crate::Error> 
 }
 
 pub async fn download(url: &str, name: Option<&str>) -> Result<PathBuf, crate::Error> {
-    let url = reqwest::Url::parse(url).no_code()?;
+    let url = reqwest::Url::parse(url)?;
     log::info!("Downloading {}.", url.as_str());
     let response = reqwest::get(url)
         .compat()
         .await
-        .with_code(crate::error::NETWORK_ERROR)?
+        .with_kind(crate::ErrorKind::Network)?
         .error_for_status()
-        .with_code(crate::error::REGISTRY_ERROR)?;
+        .with_kind(crate::ErrorKind::Registry)?;
     tokio::fs::create_dir_all(crate::TMP_DIR).await?;
     let tmp_file_path =
         Path::new(crate::TMP_DIR).join(&format!("{}.s9pk", name.unwrap_or("download")));
@@ -157,10 +155,12 @@ pub async fn download(url: &str, name: Option<&str>) -> Result<PathBuf, crate::E
 pub async fn install_url(url: &str, name: Option<&str>) -> Result<(), crate::Error> {
     let tmp_file_path = download(url, name).await?;
     install_path(&tmp_file_path, name).await?;
-    tokio::fs::remove_file(&tmp_file_path)
-        .await
-        .with_context(|e| format!("{}: {}", tmp_file_path.display(), e))
-        .with_code(crate::error::FILESYSTEM_ERROR)?;
+    tokio::fs::remove_file(&tmp_file_path).await.with_ctx(|_| {
+        (
+            crate::ErrorKind::Filesystem,
+            tmp_file_path.display().to_string(),
+        )
+    })?;
     Ok(())
 }
 
@@ -170,13 +170,11 @@ pub async fn install_path<P: AsRef<Path>>(p: P, name: Option<&str>) -> Result<()
         "Starting install of {}.",
         path.file_name()
             .and_then(|a| a.to_str())
-            .ok_or(Error::InvalidFileName)
-            .no_code()?
+            .ok_or(Error::InvalidFileName)?
     );
     let file = tokio::fs::File::open(&path)
         .await
-        .with_context(|e| format!("{}: {}", path.display(), e))
-        .with_code(crate::error::FILESYSTEM_ERROR)?;
+        .with_ctx(|_| (crate::ErrorKind::Filesystem, path.display().to_string()))?;
     let len = file.metadata().await?.len();
     let done = Arc::new(AtomicBool::new(false));
     let counter = Arc::new(AtomicU64::new(0));
@@ -221,15 +219,14 @@ pub async fn install<R: AsyncRead + Unpin + Send + Sync>(
     let manifest = entries
         .next()
         .await
-        .ok_or(Error::CorruptedPkgFile("missing manifest"))
-        .no_code()??;
+        .ok_or(Error::CorruptedPkgFile("missing manifest"))??;
     crate::ensure_code!(
         manifest.path()?.to_str() == Some("manifest.cbor"),
-        crate::error::GENERAL_ERROR,
+        crate::ErrorKind::ParseS9pk,
         "Package File Invalid or Corrupted"
     );
     log::trace!("Deserializing manifest.");
-    let manifest: Manifest = from_cbor_async_reader(manifest).await.no_code()?;
+    let manifest: Manifest = from_cbor_async_reader(manifest).await?;
     match manifest {
         Manifest::V0(m) => install_v0(m, entries, name).await?,
     };
@@ -245,14 +242,14 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
         crate::version::Current::new()
             .semver()
             .satisfies(&manifest.os_version_required),
-        crate::error::VERSION_INCOMPATIBLE,
+        crate::ErrorKind::VersionIncompatible,
         "OS Version Not Compatible: need {}",
         manifest.os_version_required
     );
     if let Some(name) = name {
         crate::ensure_code!(
             manifest.id == name,
-            crate::error::GENERAL_ERROR,
+            crate::ErrorKind::ParseS9pk,
             "Package Name Does Not Match Expected"
         );
     }
@@ -292,11 +289,10 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
     let config_spec = entries
         .next()
         .await
-        .ok_or(Error::CorruptedPkgFile("missing config spec"))
-        .no_code()??;
+        .ok_or(Error::CorruptedPkgFile("missing config spec"))??;
     crate::ensure_code!(
         config_spec.path()?.to_str() == Some("config_spec.cbor"),
-        crate::error::GENERAL_ERROR,
+        crate::ErrorKind::ParseS9pk,
         "Package File Invalid or Corrupted"
     );
     log::trace!("Deserializing config spec.");
@@ -309,11 +305,10 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
     let config_rules = entries
         .next()
         .await
-        .ok_or(Error::CorruptedPkgFile("missing config rules"))
-        .no_code()??;
+        .ok_or(Error::CorruptedPkgFile("missing config rules"))??;
     crate::ensure_code!(
         config_rules.path()?.to_str() == Some("config_rules.cbor"),
-        crate::error::GENERAL_ERROR,
+        crate::ErrorKind::ParseS9pk,
         "Package File Invalid or Corrupted"
     );
     log::trace!("Deserializing config rules.");
@@ -327,18 +322,17 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
         let mut instructions = entries
             .next()
             .await
-            .ok_or(Error::CorruptedPkgFile("missing config rules"))
-            .no_code()??;
+            .ok_or(Error::CorruptedPkgFile("missing config rules"))??;
         crate::ensure_code!(
             instructions.path()?.to_str() == Some("instructions.md"),
-            crate::error::GENERAL_ERROR,
+            crate::ErrorKind::ParseS9pk,
             "Package File Invalid or Corrupted"
         );
         log::info!("Saving instructions.");
         let mut instructions_out = app_dir.join("instructions.md").write(None).await?;
         tokio::io::copy(&mut instructions, &mut *instructions_out)
             .await
-            .with_code(crate::error::FILESYSTEM_ERROR)?;
+            .with_kind(crate::ErrorKind::Filesystem)?;
         instructions_out.commit().await?;
     }
 
@@ -353,11 +347,10 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
         let mut src = entries
             .next()
             .await
-            .ok_or(Error::CorruptedPkgFile("missing asset"))
-            .no_code()??;
+            .ok_or(Error::CorruptedPkgFile("missing asset"))??;
         crate::ensure_code!(
             src.path()? == src_path,
-            crate::error::GENERAL_ERROR,
+            crate::ErrorKind::ParseS9pk,
             "Package File Invalid or Corrupted"
         );
         let dst_path_file = dst_path.join(src_path);
@@ -368,13 +361,19 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
                 if dst_path_file.is_dir() {
                     tokio::fs::remove_dir_all(&dst_path_file)
                         .await
-                        .with_context(|e| format!("{}: {}", dst_path_file.display(), e))
-                        .with_code(crate::error::FILESYSTEM_ERROR)?;
+                        .with_ctx(|_| {
+                            (
+                                crate::ErrorKind::Filesystem,
+                                dst_path_file.display().to_string(),
+                            )
+                        })?;
                 } else {
-                    tokio::fs::remove_file(&dst_path_file)
-                        .await
-                        .with_context(|e| format!("{}: {}", dst_path_file.display(), e))
-                        .with_code(crate::error::FILESYSTEM_ERROR)?;
+                    tokio::fs::remove_file(&dst_path_file).await.with_ctx(|_| {
+                        (
+                            crate::ErrorKind::Filesystem,
+                            dst_path_file.display().to_string(),
+                        )
+                    })?;
                 }
             }
             src.unpack_in(&dst_path).await?;
@@ -383,8 +382,7 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
                     let mut file = entries
                         .next()
                         .await
-                        .ok_or(Error::CorruptedPkgFile("missing asset"))
-                        .no_code()??;
+                        .ok_or(Error::CorruptedPkgFile("missing asset"))??;
                     if file
                         .path()?
                         .starts_with(format!("APPMGR_DIR_END:{}", asset.src.display()))
@@ -432,7 +430,7 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
                         .await?
                         .status
                         .success(),
-                    crate::error::DOCKER_ERROR,
+                    crate::ErrorKind::Docker,
                     "Failed to Remove Existing Image"
                 )
             }
@@ -440,14 +438,16 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
             let mut image = entries
                 .next()
                 .await
-                .ok_or(Error::CorruptedPkgFile("missing image.tar"))
-                .no_code()??;
+                .ok_or(Error::CorruptedPkgFile("missing image.tar"))??;
             let image_path = image.path()?;
             if image_path != Path::new("image.tar") {
-                return Err(crate::Error::from(format_err!(
-                    "Package File Invalid or Corrupted: expected image.tar, got {}",
-                    image_path.display()
-                )));
+                return Err(crate::Error::new(
+                    anyhow::anyhow!(
+                        "Package File Invalid or Corrupted: expected image.tar, got {}",
+                        image_path.display()
+                    ),
+                    crate::ErrorKind::ParseS9pk,
+                ));
             }
             log::info!(
                 "Loading docker image start9/{} from image.tar.",
@@ -469,7 +469,7 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
             drop(child_in);
             crate::ensure_code!(
                 child.wait().await?.success(),
-                crate::error::DOCKER_ERROR,
+                crate::ErrorKind::Docker,
                 "Failed to Load Docker Image From Tar"
             );
             tag
@@ -525,7 +525,7 @@ pub async fn install_v0<R: AsyncRead + Unpin + Send + Sync>(
             })
             .status()?
             .success(),
-        crate::error::DOCKER_ERROR,
+        crate::ErrorKind::Docker,
         "Failed to Create Docker Container"
     );
     tokio::fs::create_dir_all(Path::new(crate::VOLUMES).join(&manifest.id).join("start9")).await?;

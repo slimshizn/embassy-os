@@ -7,10 +7,9 @@ use rand::SeedableRng;
 
 use crate::config::{Config, ConfigRuleEntryWithSuggestions, ConfigSpec};
 use crate::manifest::ManifestLatest;
-use crate::Error;
-use crate::ResultExt as _;
+use crate::{Error, ResultExt as _};
 
-#[derive(Clone, Debug, Fail, serde::Serialize)]
+#[derive(Clone, Debug, thiserror::Error, serde::Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum DependencyError {
     NotInstalled, // "not-installed"
@@ -178,8 +177,8 @@ pub async fn auto_configure(
         .dependencies
         .0
         .get(dependency)
-        .ok_or_else(|| failure::format_err!("{} Does Not Depend On {}", dependent, dependency))
-        .no_code()?;
+        .ok_or_else(|| anyhow::anyhow!("{} Does Not Depend On {}", dependent, dependency))
+        .with_kind(crate::ErrorKind::Dependency)?;
     for rule in &dep_info.config {
         if let Err(e) = rule.apply(dependency, &mut dependency_config, &mut cfgs) {
             log::warn!("Rule Unsatisfied After Applying Suggestions: {}", e);

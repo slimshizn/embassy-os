@@ -25,52 +25,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28b2cd92db5cbd74e8e5028f7e27dd7aa3090e89e4f2a197cc7c8dfb69c7063b"
 
 [[package]]
-name = "appmgr"
-version = "0.2.12"
-dependencies = [
- "anyhow",
- "async-trait",
- "avahi-sys",
- "base32",
- "clap",
- "ctrlc",
- "ed25519-dalek",
- "emver",
- "file-lock",
- "futures",
- "git-version",
- "http",
- "itertools 0.10.0",
- "lazy_static",
- "libc",
- "linear-map",
- "log",
- "nix 0.20.0",
- "openssl",
- "patch-db",
- "pest",
- "pest_derive",
- "prettytable-rs",
- "rand 0.8.3",
- "regex",
- "reqwest",
- "rpassword",
- "rpc-toolkit",
- "rust-argon2",
- "scopeguard",
- "serde",
- "serde_cbor 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_json",
- "serde_yaml",
- "simple-logging",
- "thiserror",
- "tokio 1.4.0",
- "tokio-compat-02",
- "tokio-tar",
- "yajrc 0.1.0 (git+https://github.com/dr-bonez/yajrc?rev=c2952a4a21c50f7be6f8003afa37ee77deb66d56)",
-]
-
-[[package]]
 name = "arrayref"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -249,12 +203,6 @@ name = "bytes"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e4cec68f03f32e44924783795810fa50a7035d8c8ebe78580ad7e6c703fba38"
-
-[[package]]
-name = "bytes"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0dcbc35f504eb6fc275a6d20e4ebcda18cf50d40ba6fabff8c711fa16cb3b16"
 
 [[package]]
 name = "bytes"
@@ -521,6 +469,52 @@ name = "either"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
+
+[[package]]
+name = "embassy"
+version = "0.2.12"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "avahi-sys",
+ "base32",
+ "clap",
+ "ctrlc",
+ "ed25519-dalek",
+ "emver",
+ "file-lock",
+ "futures",
+ "git-version",
+ "http",
+ "itertools 0.10.0",
+ "lazy_static",
+ "libc",
+ "linear-map",
+ "log",
+ "nix 0.20.0",
+ "openssl",
+ "patch-db",
+ "pest",
+ "pest_derive",
+ "prettytable-rs",
+ "rand 0.8.3",
+ "regex",
+ "reqwest",
+ "rpassword",
+ "rpc-toolkit",
+ "rust-argon2",
+ "scopeguard",
+ "serde",
+ "serde_cbor 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json",
+ "serde_yaml",
+ "simple-logging",
+ "thiserror",
+ "tokio 1.4.0",
+ "tokio-compat-02",
+ "tokio-stream",
+ "tokio-tar",
+]
 
 [[package]]
 name = "emver"
@@ -1853,7 +1847,7 @@ dependencies = [
  "thiserror",
  "tokio 1.4.0",
  "url",
- "yajrc 0.1.0",
+ "yajrc",
 ]
 
 [[package]]
@@ -2287,19 +2281,6 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "0.3.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46409491c9375a693ce7032101970a54f8a2010efb77e13f70788f0d84489e39"
-dependencies = [
- "autocfg",
- "bytes 0.6.0",
- "futures-core",
- "memchr",
- "pin-project-lite 0.2.4",
-]
-
-[[package]]
-name = "tokio"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "134af885d758d645f0f0505c9a8b3f9bf8a348fd822e112ab5248138348f1722"
@@ -2367,13 +2348,15 @@ dependencies = [
 [[package]]
 name = "tokio-tar"
 version = "0.3.0"
-source = "git+https://github.com/dr-bonez/tokio-tar.git?rev=1ba710f3#1ba710f344ddb2a5b4d98bb96c905195c3cd9d43"
+source = "git+https://github.com/dr-bonez/tokio-tar.git?branch=tokio-1#d4aedc2487848c06fe353dd3fd23cccef93c2d2d"
 dependencies = [
  "filetime",
  "futures-core",
  "libc",
  "redox_syscall 0.2.5",
- "tokio 0.3.7",
+ "tokio 1.4.0",
+ "tokio-stream",
+ "tokio-util",
  "xattr",
 ]
 
@@ -2693,17 +2676,6 @@ dependencies = [
 [[package]]
 name = "yajrc"
 version = "0.1.0"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
-name = "yajrc"
-version = "0.1.0"
-source = "git+https://github.com/dr-bonez/yajrc?rev=c2952a4a21c50f7be6f8003afa37ee77deb66d56#c2952a4a21c50f7be6f8003afa37ee77deb66d56"
 dependencies = [
  "anyhow",
  "serde",

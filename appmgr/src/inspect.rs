@@ -1,6 +1,5 @@
 use std::path::Path;
 
-use failure::ResultExt as _;
 use futures::stream::StreamExt;
 use tokio_tar as tar;
 
@@ -8,8 +7,7 @@ use crate::config::{ConfigRuleEntry, ConfigSpec};
 use crate::manifest::{Manifest, ManifestLatest};
 use crate::util::from_cbor_async_reader;
 use crate::version::VersionT;
-use crate::Error;
-use crate::ResultExt as _;
+use crate::{Error, ResultExt as _};
 
 #[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -45,8 +43,7 @@ pub async fn info_full<P: AsRef<Path>>(
     log::info!("Opening file.");
     let r = tokio::fs::File::open(p)
         .await
-        .with_context(|e| format!("{}: {}", p.display(), e))
-        .with_code(crate::error::FILESYSTEM_ERROR)?;
+        .with_ctx(|_| (crate::ErrorKind::Filesystem, p.display().to_string()))?;
     log::info!("Extracting archive.");
     let mut pkg = tar::Archive::new(r);
     let mut entries = pkg.entries()?;
@@ -54,11 +51,10 @@ pub async fn info_full<P: AsRef<Path>>(
     let manifest = entries
         .next()
         .await
-        .ok_or(crate::install::Error::CorruptedPkgFile("missing manifest"))
-        .no_code()??;
+        .ok_or(crate::install::Error::CorruptedPkgFile("missing manifest"))??;
     crate::ensure_code!(
         manifest.path()?.to_str() == Some("manifest.cbor"),
-        crate::error::GENERAL_ERROR,
+        crate::ErrorKind::ParseS9pk,
         "Package File Invalid or Corrupted"
     );
     log::trace!("Deserializing manifest.");
@@ -68,7 +64,7 @@ pub async fn info_full<P: AsRef<Path>>(
         crate::version::Current::new()
             .semver()
             .satisfies(&manifest.os_version_required),
-        crate::error::VERSION_INCOMPATIBLE,
+        crate::ErrorKind::VersionIncompatible,
         "AppMgr Version Not Compatible: needs {}",
         manifest.os_version_required
     );
@@ -85,11 +81,10 @@ pub async fn info_full<P: AsRef<Path>>(
                 .await
                 .ok_or(crate::install::Error::CorruptedPkgFile(
                     "missing config spec",
-                ))
-                .no_code()??;
+                ))??;
             crate::ensure_code!(
                 spec.path()?.to_str() == Some("config_spec.cbor"),
-                crate::error::GENERAL_ERROR,
+                crate::ErrorKind::ParseS9pk,
                 "Package File Invalid or Corrupted"
             );
             log::trace!("Deserializing config spec.");
@@ -100,11 +95,10 @@ pub async fn info_full<P: AsRef<Path>>(
                 .await
                 .ok_or(crate::install::Error::CorruptedPkgFile(
                     "missing config rules",
-                ))
-                .no_code()??;
+                ))??;
             crate::ensure_code!(
                 rules.path()?.to_str() == Some("config_rules.cbor"),
-                crate::error::GENERAL_ERROR,
+                crate::ErrorKind::ParseS9pk,
                 "Package File Invalid or Corrupted"
             );
             log::trace!("Deserializing config rules.");
@@ -121,8 +115,7 @@ pub async fn print_instructions<P: AsRef<Path>>(path: P) -> Result<(), Error> {
     log::info!("Opening file.");
     let r = tokio::fs::File::open(p)
         .await
-        .with_context(|e| format!("{}: {}", p.display(), e))
-        .with_code(crate::error::FILESYSTEM_ERROR)?;
+        .with_ctx(|_| (crate::ErrorKind::Filesystem, p.display().to_string()))?;
     log::info!("Extracting archive.");
     let mut pkg = tar::Archive::new(r);
     let mut entries = pkg.entries()?;
@@ -130,11 +123,10 @@ pub async fn print_instructions<P: AsRef<Path>>(path: P) -> Result<(), Error> {
     let manifest = entries
         .next()
         .await
-        .ok_or(crate::install::Error::CorruptedPkgFile("missing manifest"))
-        .no_code()??;
+        .ok_or(crate::install::Error::CorruptedPkgFile("missing manifest"))??;
     crate::ensure_code!(
         manifest.path()?.to_str() == Some("manifest.cbor"),
-        crate::error::GENERAL_ERROR,
+        crate::ErrorKind::ParseS9pk,
         "Package File Invalid or Corrupted"
     );
     log::trace!("Deserializing manifest.");
@@ -144,7 +136,7 @@ pub async fn print_instructions<P: AsRef<Path>>(path: P) -> Result<(), Error> {
         crate::version::Current::new()
             .semver()
             .satisfies(&manifest.os_version_required),
-        crate::error::VERSION_INCOMPATIBLE,
+        crate::ErrorKind::VersionIncompatible,
         "AppMgr Version Not Compatible: needs {}",
         manifest.os_version_required
     );
@@ -153,42 +145,40 @@ pub async fn print_instructions<P: AsRef<Path>>(path: P) -> Result<(), Error> {
         .await
         .ok_or(crate::install::Error::CorruptedPkgFile(
             "missing config spec",
-        ))
-        .no_code()??;
+        ))??;
     entries
         .next()
         .await
         .ok_or(crate::install::Error::CorruptedPkgFile(
             "missing config rules",
-        ))
-        .no_code()??;
+        ))??;
 
     if manifest.has_instructions {
         use tokio::io::AsyncWriteExt;
 
-        let mut instructions = entries
-            .next()
-            .await
-            .ok_or(crate::install::Error::CorruptedPkgFile(
-                "missing instructions",
-            ))
-            .no_code()??;
+        let mut instructions =
+            entries
+                .next()
+                .await
+                .ok_or(crate::install::Error::CorruptedPkgFile(
+                    "missing instructions",
+                ))??;
 
         let mut stdout = tokio::io::stdout();
         tokio::io::copy(&mut instructions, &mut stdout)
             .await
-            .with_code(crate::error::FILESYSTEM_ERROR)?;
+            .with_kind(crate::ErrorKind::Filesystem)?;
         stdout
             .flush()
             .await
-            .with_code(crate::error::FILESYSTEM_ERROR)?;
+            .with_kind(crate::ErrorKind::Filesystem)?;
         stdout
             .shutdown()
             .await
-            .with_code(crate::error::FILESYSTEM_ERROR)?;
+            .with_kind(crate::ErrorKind::Filesystem)?;
     } else {
-        return Err(failure::format_err!("No instructions for {}", p.display()))
-            .with_code(crate::error::NOT_FOUND);
+        return Err(anyhow::anyhow!("No instructions for {}", p.display()))
+            .with_kind(crate::ErrorKind::NotFound);
     }
 
     Ok(())

@@ -1,14 +1,12 @@
-use failure::ResultExt as _;
 use futures::future::{BoxFuture, FutureExt, OptionFuture};
-use linear_map::{set::LinearSet, LinearMap};
+use linear_map::set::LinearSet;
+use linear_map::LinearMap;
 use rand::SeedableRng;
 
 use crate::dependencies::AppDependencies;
 use crate::manifest::{Manifest, ManifestLatest};
-use crate::util::Apply;
-use crate::util::{from_yaml_async_reader, PersistencePath, YamlUpdateHandle};
-use crate::Error;
-use crate::ResultExt as _;
+use crate::util::{from_yaml_async_reader, Apply, PersistencePath, YamlUpdateHandle};
+use crate::{Error, ResultExt as _};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -84,7 +82,7 @@ pub async fn list_info_mut() -> Result<YamlUpdateHandle<LinearMap<String, AppInf
     YamlUpdateHandle::new_or_default(apps_path).await
 }
 
-pub async fn add(id: &str, info: AppInfo) -> Result<(), failure::Error> {
+pub async fn add(id: &str, info: AppInfo) -> Result<(), Error> {
     let mut apps = list_info_mut().await?;
     apps.insert(id.to_string(), info);
     apps.commit().await?;
@@ -95,8 +93,8 @@ pub async fn set_configured(id: &str, configured: bool) -> Result<(), Error> {
     let mut apps = list_info_mut().await?;
     let mut app = apps
         .get_mut(id)
-        .ok_or_else(|| failure::format_err!("App Not Installed: {}", id))
-        .with_code(crate::error::NOT_FOUND)?;
+        .ok_or_else(|| anyhow::anyhow!("App Not Installed: {}", id))
+        .with_kind(crate::ErrorKind::NotFound)?;
     app.configured = configured;
     apps.commit().await?;
     Ok(())
@@ -106,8 +104,8 @@ pub async fn set_needs_restart(id: &str, needs_restart: bool) -> Result<(), Erro
     let mut apps = list_info_mut().await?;
     let mut app = apps
         .get_mut(id)
-        .ok_or_else(|| failure::format_err!("App Not Installed: {}", id))
-        .with_code(crate::error::NOT_FOUND)?;
+        .ok_or_else(|| anyhow::anyhow!("App Not Installed: {}", id))
+        .with_kind(crate::ErrorKind::NotFound)?;
     app.needs_restart = needs_restart;
     apps.commit().await?;
     Ok(())
@@ -117,14 +115,14 @@ pub async fn set_recoverable(id: &str, recoverable: bool) -> Result<(), Error> {
     let mut apps = list_info_mut().await?;
     let mut app = apps
         .get_mut(id)
-        .ok_or_else(|| failure::format_err!("App Not Installed: {}", id))
-        .with_code(crate::error::NOT_FOUND)?;
+        .ok_or_else(|| anyhow::anyhow!("App Not Installed: {}", id))
+        .with_kind(crate::ErrorKind::NotFound)?;
     app.recoverable = recoverable;
     apps.commit().await?;
     Ok(())
 }
 
-pub async fn remove(id: &str) -> Result<(), failure::Error> {
+pub async fn remove(id: &str) -> Result<(), Error> {
     let mut apps = list_info_mut().await?;
     apps.remove(id);
     apps.commit().await?;
@@ -143,12 +141,12 @@ pub async fn status(id: &str, remap_crashed: bool) -> Result<AppStatus, Error> {
         .wait_with_output()?;
     crate::ensure_code!(
         output.status.success(),
-        crate::error::DOCKER_ERROR,
+        crate::ErrorKind::Docker,
         "{}: Docker Error: {}",
         id,
-        std::str::from_utf8(&output.stderr).no_code()?
+        std::str::from_utf8(&output.stderr)?
     );
-    let status = std::str::from_utf8(&output.stdout).no_code()?;
+    let status = std::str::from_utf8(&output.stdout)?;
     Ok(AppStatus {
         status: match status.trim() {
             "running" => DockerStatus::Running,
@@ -170,7 +168,12 @@ pub async fn status(id: &str, remap_crashed: bool) -> Result<AppStatus, Error> {
             }
             "created" | "exited" => DockerStatus::Stopped,
             "paused" => DockerStatus::Paused,
-            _ => Err(format_err!("unknown status: {}", status))?,
+            _ => {
+                return Err(Error::new(
+                    anyhow::anyhow!("unknown status: {}", status),
+                    crate::ErrorKind::Docker,
+                ))
+            }
         },
     })
 }
@@ -192,16 +195,12 @@ pub async fn config(id: &str) -> Result<AppConfig, Error> {
         .join(id)
         .join("config_spec.yaml");
     let spec: crate::config::ConfigSpec =
-        crate::util::from_yaml_async_reader(&mut *spec.read(false).await?)
-            .await
-            .no_code()?;
+        crate::util::from_yaml_async_reader(&mut *spec.read(false).await?).await?;
     let rules = PersistencePath::from_ref("apps")
         .join(id)
         .join("config_rules.yaml");
     let rules: Vec<crate::config::ConfigRuleEntry> =
-        crate::util::from_yaml_async_reader(&mut *rules.read(false).await?)
-            .await
-            .no_code()?;
+        crate::util::from_yaml_async_reader(&mut *rules.read(false).await?).await?;
     let config = PersistencePath::from_ref("apps")
         .join(id)
         .join("config.yaml");
@@ -225,19 +224,18 @@ pub async fn config(id: &str) -> Result<AppConfig, Error> {
                 let cfg_path = config.path();
                 tokio::fs::copy(&volume_config, &cfg_path)
                     .await
-                    .with_context(|e| {
-                        format!(
-                            "{}: {} -> {}",
-                            e,
-                            volume_config.display(),
-                            cfg_path.display()
+                    .with_ctx(|_| {
+                        (
+                            crate::ErrorKind::Filesystem,
+                            format!("{} -> {}", volume_config.display(), cfg_path.display()),
                         )
-                    })
-                    .with_code(crate::error::FILESYSTEM_ERROR)?;
-                let mut f = tokio::fs::File::open(&volume_config)
-                    .await
-                    .with_context(|e| format!("{}: {}", e, volume_config.display()))
-                    .with_code(crate::error::FILESYSTEM_ERROR)?;
+                    })?;
+                let mut f = tokio::fs::File::open(&volume_config).await.with_ctx(|_| {
+                    (
+                        crate::ErrorKind::Filesystem,
+                        volume_config.display().to_string(),
+                    )
+                })?;
                 match from_yaml_async_reader(&mut f).await {
                     Ok(a) => Some(a),
                     #[cfg(not(feature = "production"))]
@@ -265,7 +263,7 @@ pub async fn config_or_default(id: &str) -> Result<crate::config::Config, Error>
         config
             .spec
             .gen(&mut rand::rngs::StdRng::from_entropy(), &None)
-            .with_code(crate::error::CFG_SPEC_VIOLATION)?
+            .with_kind(crate::ErrorKind::ConfigSpecViolation)?
     })
 }
 
@@ -274,7 +272,12 @@ pub async fn info(id: &str) -> Result<AppInfo, Error> {
         .await
         .map_err(Error::from)?
         .get(id)
-        .ok_or_else(|| Error::new(failure::format_err!("{} is not installed", id), Some(6)))
+        .ok_or_else(|| {
+            Error::new(
+                anyhow::anyhow!("{} is not installed", id),
+                crate::ErrorKind::NotFound,
+            )
+        })
         .map(Clone::clone)
 }
 
@@ -317,8 +320,7 @@ pub async fn dependencies(id_version: &str, local_only: bool) -> Result<AppDepen
         .next()
         .map(|a| a.parse::<emver::VersionRange>())
         .transpose()
-        .with_context(|e| format!("Failed to Parse Version Requirement: {}", e))
-        .no_code()?
+        .with_kind(crate::ErrorKind::ParseVersion)?
         .unwrap_or_else(emver::VersionRange::any);
     let (manifest, config_info) = match list_info().await?.get(id) {
         Some(info) if info.version.satisfies(&version_range) => {
@@ -329,8 +331,8 @@ pub async fn dependencies(id_version: &str, local_only: bool) -> Result<AppDepen
             crate::registry::config(id, &version_range)
         )?,
         _ => {
-            return Err(failure::format_err!("App Not Installed: {}", id))
-                .with_code(crate::error::NOT_FOUND)
+            return Err(anyhow::anyhow!("App Not Installed: {}", id))
+                .with_kind(crate::ErrorKind::NotFound)
         }
     };
     let config = if let Some(cfg) = config_info.config {
@@ -441,17 +443,17 @@ pub async fn print_instructions(id: &str) -> Result<(), Error> {
         let mut stdout = tokio::io::stdout();
         tokio::io::copy(&mut *file?, &mut stdout)
             .await
-            .with_code(crate::error::FILESYSTEM_ERROR)?;
+            .with_kind(crate::ErrorKind::Filesystem)?;
         stdout
             .flush()
             .await
-            .with_code(crate::error::FILESYSTEM_ERROR)?;
+            .with_kind(crate::ErrorKind::Filesystem)?;
         stdout
             .shutdown()
             .await
-            .with_code(crate::error::FILESYSTEM_ERROR)?;
+            .with_kind(crate::ErrorKind::Filesystem)?;
         Ok(())
     } else {
-        Err(failure::format_err!("No Instructions: {}", id)).with_code(crate::error::NOT_FOUND)
+        Err(anyhow::anyhow!("No Instructions: {}", id)).with_kind(crate::ErrorKind::NotFound)
     }
 }

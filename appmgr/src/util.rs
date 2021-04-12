@@ -2,13 +2,11 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 
-use failure::ResultExt as _;
 use file_lock::FileLock;
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 
-use crate::Error;
-use crate::ResultExt as _;
+use crate::{Error, ResultExt as _};
 
 #[derive(Debug, Clone)]
 pub struct PersistencePath(PathBuf);
@@ -49,13 +47,11 @@ impl PersistencePath {
             // !exists
             tokio::fs::File::create(&lock_path)
                 .await
-                .with_context(|e| format!("{}: {}", lock_path, e))
-                .with_code(crate::error::FILESYSTEM_ERROR)?;
+                .with_ctx(|_| (crate::ErrorKind::Filesystem, lock_path.clone()))?;
         }
         let lock = lock_file(lock_path.clone(), for_update)
             .await
-            .with_context(|e| format!("{}: {}", lock_path, e))
-            .with_code(crate::error::FILESYSTEM_ERROR)?;
+            .with_ctx(|_| (crate::ErrorKind::Filesystem, lock_path))?;
         Ok(lock)
     }
 
@@ -77,8 +73,7 @@ impl PersistencePath {
         let lock = self.lock(for_update).await?;
         let file = File::open(&path)
             .await
-            .with_context(|e| format!("{}: {}", path.display(), e))
-            .with_code(crate::error::FILESYSTEM_ERROR)?;
+            .with_ctx(|_| (crate::ErrorKind::Filesystem, path.display().to_string()))?;
         Ok(PersistenceFile::new(file, lock, None))
     }
 
@@ -115,7 +110,7 @@ impl PersistencePath {
         match tokio::fs::remove_file(self.path()).await {
             Ok(()) => Ok(()),
             Err(k) if k.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            e => e.with_code(crate::error::FILESYSTEM_ERROR),
+            e => e.with_kind(crate::ErrorKind::Filesystem),
         }
     }
 }
@@ -151,20 +146,19 @@ impl PersistenceFile {
         if let Some(path) = self.needs_commit.take() {
             tokio::fs::rename(path.tmp(), path.path())
                 .await
-                .with_context(|e| {
-                    format!(
-                        "{} -> {}: {}",
-                        path.tmp().display(),
-                        path.path().display(),
-                        e
+                .with_ctx(|_| {
+                    (
+                        crate::ErrorKind::Filesystem,
+                        format!("{} -> {}", path.tmp().display(), path.path().display(),),
                     )
-                })
-                .with_code(crate::error::FILESYSTEM_ERROR)?;
+                })?;
             if let Some(lock) = self.lock.take() {
-                unlock(lock)
-                    .await
-                    .with_context(|e| format!("{}.lock: {}", path.path().display(), e))
-                    .with_code(crate::error::FILESYSTEM_ERROR)?;
+                unlock(lock).await.with_ctx(|_| {
+                    (
+                        crate::ErrorKind::Filesystem,
+                        path.path().display().to_string(),
+                    )
+                })?;
             }
 
             Ok(())
@@ -308,9 +302,7 @@ where
 
     pub async fn commit(mut self) -> Result<(), Error> {
         let mut file = self.handle.into_writer().await?;
-        to_yaml_async_writer(&mut file, &self.inner)
-            .await
-            .no_code()?;
+        to_yaml_async_writer(&mut file, &self.inner).await?;
         file.commit().await?;
         self.committed = true;
         Ok(())
@@ -363,7 +355,7 @@ impl fmt::Display for Never {
         absurd(self.clone())
     }
 }
-impl failure::Fail for Never {}
+impl std::error::Error for Never {}
 
 #[derive(Clone, Debug)]
 pub struct AsyncCompat<T>(pub T);
@@ -471,8 +463,8 @@ where
     let mut buffer = Vec::new();
     reader.read_to_end(&mut buffer).await?;
     serde_yaml::from_slice(&buffer)
-        .map_err(failure::Error::from)
-        .with_code(crate::error::SERDE_ERROR)
+        .map_err(anyhow::Error::from)
+        .with_kind(crate::ErrorKind::Deserialization)
 }
 
 pub async fn to_yaml_async_writer<T, W>(mut writer: W, value: &T) -> Result<(), crate::Error>
@@ -480,7 +472,7 @@ where
     T: serde::Serialize,
     W: AsyncWrite + Unpin,
 {
-    let mut buffer = serde_yaml::to_vec(value).with_code(crate::error::SERDE_ERROR)?;
+    let mut buffer = serde_yaml::to_vec(value).with_kind(crate::ErrorKind::Serialization)?;
     buffer.extend_from_slice(b"\n");
     writer.write_all(&buffer).await?;
     Ok(())
@@ -494,8 +486,8 @@ where
     let mut buffer = Vec::new();
     reader.read_to_end(&mut buffer).await?;
     serde_cbor::from_slice(&buffer)
-        .map_err(failure::Error::from)
-        .with_code(crate::error::SERDE_ERROR)
+        .map_err(anyhow::Error::from)
+        .with_kind(crate::ErrorKind::Deserialization)
 }
 
 pub async fn from_json_async_reader<T, R>(mut reader: R) -> Result<T, crate::Error>
@@ -506,8 +498,8 @@ where
     let mut buffer = Vec::new();
     reader.read_to_end(&mut buffer).await?;
     serde_json::from_slice(&buffer)
-        .map_err(failure::Error::from)
-        .with_code(crate::error::SERDE_ERROR)
+        .map_err(anyhow::Error::from)
+        .with_kind(crate::ErrorKind::Deserialization)
 }
 
 pub async fn to_json_async_writer<T, W>(mut writer: W, value: &T) -> Result<(), crate::Error>
@@ -515,7 +507,7 @@ where
     T: serde::Serialize,
     W: AsyncWrite + Unpin,
 {
-    let buffer = serde_json::to_string(value).with_code(crate::error::SERDE_ERROR)?;
+    let buffer = serde_json::to_string(value).with_kind(crate::ErrorKind::Serialization)?;
     writer.write_all(&buffer.as_bytes()).await?;
     Ok(())
 }
@@ -525,7 +517,8 @@ where
     T: serde::Serialize,
     W: AsyncWrite + Unpin,
 {
-    let mut buffer = serde_json::to_string_pretty(value).with_code(crate::error::SERDE_ERROR)?;
+    let mut buffer =
+        serde_json::to_string_pretty(value).with_kind(crate::ErrorKind::Serialization)?;
     buffer.push_str("\n");
     writer.write_all(&buffer.as_bytes()).await?;
     Ok(())
@@ -533,16 +526,17 @@ where
 
 #[async_trait::async_trait]
 pub trait Invoke {
-    async fn invoke(&mut self, name: &str) -> Result<Vec<u8>, failure::Error>;
+    async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error>;
 }
 #[async_trait::async_trait]
 impl Invoke for tokio::process::Command {
-    async fn invoke(&mut self, name: &str) -> Result<Vec<u8>, failure::Error> {
+    async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error> {
         let res = self.output().await?;
-        ensure!(
+        crate::ensure_code!(
             res.status.success(),
-            "{} Error: {}",
-            name,
+            error_kind,
+            "{}: {}",
+            error_kind,
             std::str::from_utf8(&res.stderr).unwrap_or("Unknown Error")
         );
         Ok(res.stdout)

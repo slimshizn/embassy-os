@@ -1,11 +1,9 @@
 use std::path::Path;
 
-use failure::ResultExt as _;
 use futures::future::try_join_all;
 
 use crate::util::Invoke;
-use crate::Error;
-use crate::ResultExt as _;
+use crate::{Error, ResultExt as _};
 
 pub const FSTAB: &'static str = "/etc/fstab";
 
@@ -37,9 +35,9 @@ pub struct Disk {
 pub async fn list() -> Result<Vec<Disk>, Error> {
     let output = tokio::process::Command::new("parted")
         .arg("-lm")
-        .invoke("GNU Parted")
+        .invoke(crate::ErrorKind::GParted)
         .await?;
-    let output_str = std::str::from_utf8(&output).no_code()?;
+    let output_str = std::str::from_utf8(&output)?;
     let disks = output_str.split("\n\n").filter_map(|s| -> Option<Disk> {
         let mut lines = s.split("\n");
         let has_size = lines.next()? == "BYT;";
@@ -101,7 +99,7 @@ pub async fn list() -> Result<Vec<Disk>, Error> {
                         .arg("LABEL")
                         .arg("-o")
                         .arg("value")
-                        .invoke("BLKID"),
+                        .invoke(crate::ErrorKind::Blkid),
                     tokio::process::Command::new("findmnt")
                         .arg(&partition.logicalname)
                         .stdout(std::process::Stdio::null())
@@ -109,7 +107,7 @@ pub async fn list() -> Result<Vec<Disk>, Error> {
                         .status()
                 );
                 let blkid_output = blkid_res?;
-                let label = std::str::from_utf8(&blkid_output).no_code()?.trim();
+                let label = std::str::from_utf8(&blkid_output)?.trim();
                 if !label.is_empty() {
                     partition.label = Some(label.to_owned());
                 }
@@ -142,7 +140,7 @@ pub async fn mount<P: AsRef<Path>>(logicalname: &str, mount_point: P) -> Result<
         .await?;
     crate::ensure_code!(
         mount_output.status.success(),
-        crate::error::FILESYSTEM_ERROR,
+        crate::ErrorKind::Filesystem,
         "Error Mounting Drive: {}",
         std::str::from_utf8(&mount_output.stderr).unwrap_or("Unknown Error")
     );
@@ -181,7 +179,7 @@ pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
         .await?;
     crate::ensure_code!(
         mount_output.status.success(),
-        crate::error::FILESYSTEM_ERROR,
+        crate::ErrorKind::Filesystem,
         "Error Binding {} to {}: {}",
         src.as_ref().display(),
         dst.as_ref().display(),
@@ -198,15 +196,19 @@ pub async fn unmount<P: AsRef<Path>>(mount_point: P) -> Result<(), Error> {
         .await?;
     crate::ensure_code!(
         umount_output.status.success(),
-        crate::error::FILESYSTEM_ERROR,
+        crate::ErrorKind::Filesystem,
         "Error Unmounting Drive: {}: {}",
         mount_point.as_ref().display(),
         std::str::from_utf8(&umount_output.stderr).unwrap_or("Unknown Error")
     );
     tokio::fs::remove_dir_all(mount_point.as_ref())
         .await
-        .with_context(|e| format!("rm {}: {}", mount_point.as_ref().display(), e))
-        .with_code(crate::error::FILESYSTEM_ERROR)?;
+        .with_ctx(|_| {
+            (
+                crate::ErrorKind::Filesystem,
+                format!("rm {}", mount_point.as_ref().display()),
+            )
+        })?;
     Ok(())
 }
 

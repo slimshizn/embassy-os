@@ -9,7 +9,7 @@ use linear_map::LinearMap;
 
 use crate::inspect::info_full;
 use crate::manifest::{Description, ManifestLatest};
-use crate::{Error, ResultExt};
+use crate::Error;
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct AppIndex(pub LinearMap<String, IndexInfo>);
@@ -115,9 +115,10 @@ pub async fn index<P: AsRef<Path>>(dir: P) -> Result<AppIndex, Error> {
                 if metadata.is_file() {
                     let ext = path.extension();
                     if ext == Some(OsStr::new("s9pk")) {
-                        let info = info_full(&path, true, false)
-                            .await
-                            .with_ctx(|e| (e.code.clone(), format!("{}: {}", path.display(), e)))?;
+                        let info = info_full(&path, true, false).await.map_err(|mut e| {
+                            e.source = e.source.context(path.display().to_string()).into();
+                            e
+                        })?;
                         idx.add(info.manifest.unwrap());
                     }
                 } else if metadata.is_dir() {

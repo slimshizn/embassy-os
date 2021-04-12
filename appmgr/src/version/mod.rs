@@ -1,60 +1,59 @@
 use std::cmp::Ordering;
 
 use async_trait::async_trait;
-use failure::ResultExt as _;
 use futures::stream::TryStreamExt;
 use tokio_compat_02::FutureExt;
 
+// mod v0_1_0;
+// mod v0_1_1;
+// mod v0_1_2;
+// mod v0_1_3;
+// mod v0_1_4;
+// mod v0_1_5;
+// mod v0_2_0;
+// mod v0_2_1;
+// mod v0_2_2;
+// mod v0_2_3;
+// mod v0_2_4;
+// mod v0_2_5;
+// mod v0_2_6;
+// mod v0_2_7;
+// mod v0_2_8;
+// mod v0_2_9;
+
+// mod v0_2_10;
+// mod v0_2_11;
+// mod v0_2_12;
+
+// pub use v0_2_12::Version as Current;
+pub type Current = ();
+
 use crate::util::{to_yaml_async_writer, AsyncCompat, PersistencePath};
-use crate::Error;
-use crate::ResultExt as _;
-
-mod v0_1_0;
-mod v0_1_1;
-mod v0_1_2;
-mod v0_1_3;
-mod v0_1_4;
-mod v0_1_5;
-mod v0_2_0;
-mod v0_2_1;
-mod v0_2_2;
-mod v0_2_3;
-mod v0_2_4;
-mod v0_2_5;
-mod v0_2_6;
-mod v0_2_7;
-mod v0_2_8;
-mod v0_2_9;
-
-mod v0_2_10;
-mod v0_2_11;
-mod v0_2_12;
-
-pub use v0_2_12::Version as Current;
+use crate::{Error, ResultExt as _};
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 enum Version {
     V0_0_0(Wrapper<()>),
-    V0_1_0(Wrapper<v0_1_0::Version>),
-    V0_1_1(Wrapper<v0_1_1::Version>),
-    V0_1_2(Wrapper<v0_1_2::Version>),
-    V0_1_3(Wrapper<v0_1_3::Version>),
-    V0_1_4(Wrapper<v0_1_4::Version>),
-    V0_1_5(Wrapper<v0_1_5::Version>),
-    V0_2_0(Wrapper<v0_2_0::Version>),
-    V0_2_1(Wrapper<v0_2_1::Version>),
-    V0_2_2(Wrapper<v0_2_2::Version>),
-    V0_2_3(Wrapper<v0_2_3::Version>),
-    V0_2_4(Wrapper<v0_2_4::Version>),
-    V0_2_5(Wrapper<v0_2_5::Version>),
-    V0_2_6(Wrapper<v0_2_6::Version>),
-    V0_2_7(Wrapper<v0_2_7::Version>),
-    V0_2_8(Wrapper<v0_2_8::Version>),
-    V0_2_9(Wrapper<v0_2_9::Version>),
-    V0_2_10(Wrapper<v0_2_10::Version>),
-    V0_2_11(Wrapper<v0_2_11::Version>),
-    V0_2_12(Wrapper<v0_2_12::Version>),
+    // V0_1_0(Wrapper<v0_1_0::Version>),
+    // V0_1_1(Wrapper<v0_1_1::Version>),
+    // V0_1_2(Wrapper<v0_1_2::Version>),
+    // V0_1_3(Wrapper<v0_1_3::Version>),
+    // V0_1_4(Wrapper<v0_1_4::Version>),
+    // V0_1_5(Wrapper<v0_1_5::Version>),
+    // V0_2_0(Wrapper<v0_2_0::Version>),
+    // V0_2_1(Wrapper<v0_2_1::Version>),
+    // V0_2_2(Wrapper<v0_2_2::Version>),
+    // V0_2_3(Wrapper<v0_2_3::Version>),
+    // V0_2_4(Wrapper<v0_2_4::Version>),
+    // V0_2_5(Wrapper<v0_2_5::Version>),
+    // V0_2_6(Wrapper<v0_2_6::Version>),
+    // V0_2_7(Wrapper<v0_2_7::Version>),
+    // V0_2_8(Wrapper<v0_2_8::Version>),
+    // V0_2_9(Wrapper<v0_2_9::Version>),
+    // V0_2_10(Wrapper<v0_2_10::Version>),
+    // V0_2_11(Wrapper<v0_2_11::Version>),
+    // V0_2_12(Wrapper<v0_2_12::Version>),
     Other(emver::Version),
 }
 
@@ -143,32 +142,32 @@ impl VersionT for () {
     }
 }
 
-pub async fn init() -> Result<(), failure::Error> {
+pub async fn init() -> Result<(), Error> {
     let _lock = PersistencePath::from_ref("").lock(true).await?;
     let vpath = PersistencePath::from_ref("version");
     if let Some(mut f) = vpath.maybe_read(false).await.transpose()? {
         let v: Version = crate::util::from_yaml_async_reader(&mut *f).await?;
         match v {
             Version::V0_0_0(v) => v.0.migrate_to(&Current::new()).await?,
-            Version::V0_1_0(v) => v.0.migrate_to(&Current::new()).await?,
-            Version::V0_1_1(v) => v.0.migrate_to(&Current::new()).await?,
-            Version::V0_1_2(v) => v.0.migrate_to(&Current::new()).await?,
-            Version::V0_1_3(v) => v.0.migrate_to(&Current::new()).await?,
-            Version::V0_1_4(v) => v.0.migrate_to(&Current::new()).await?,
-            Version::V0_1_5(v) => v.0.migrate_to(&Current::new()).await?,
-            Version::V0_2_0(v) => v.0.migrate_to(&Current::new()).await?,
-            Version::V0_2_1(v) => v.0.migrate_to(&Current::new()).await?,
-            Version::V0_2_2(v) => v.0.migrate_to(&Current::new()).await?,
-            Version::V0_2_3(v) => v.0.migrate_to(&Current::new()).await?,
-            Version::V0_2_4(v) => v.0.migrate_to(&Current::new()).await?,
-            Version::V0_2_5(v) => v.0.migrate_to(&Current::new()).await?,
-            Version::V0_2_6(v) => v.0.migrate_to(&Current::new()).await?,
-            Version::V0_2_7(v) => v.0.migrate_to(&Current::new()).await?,
-            Version::V0_2_8(v) => v.0.migrate_to(&Current::new()).await?,
-            Version::V0_2_9(v) => v.0.migrate_to(&Current::new()).await?,
-            Version::V0_2_10(v) => v.0.migrate_to(&Current::new()).await?,
-            Version::V0_2_11(v) => v.0.migrate_to(&Current::new()).await?,
-            Version::V0_2_12(v) => v.0.migrate_to(&Current::new()).await?,
+            // Version::V0_1_0(v) => v.0.migrate_to(&Current::new()).await?,
+            // Version::V0_1_1(v) => v.0.migrate_to(&Current::new()).await?,
+            // Version::V0_1_2(v) => v.0.migrate_to(&Current::new()).await?,
+            // Version::V0_1_3(v) => v.0.migrate_to(&Current::new()).await?,
+            // Version::V0_1_4(v) => v.0.migrate_to(&Current::new()).await?,
+            // Version::V0_1_5(v) => v.0.migrate_to(&Current::new()).await?,
+            // Version::V0_2_0(v) => v.0.migrate_to(&Current::new()).await?,
+            // Version::V0_2_1(v) => v.0.migrate_to(&Current::new()).await?,
+            // Version::V0_2_2(v) => v.0.migrate_to(&Current::new()).await?,
+            // Version::V0_2_3(v) => v.0.migrate_to(&Current::new()).await?,
+            // Version::V0_2_4(v) => v.0.migrate_to(&Current::new()).await?,
+            // Version::V0_2_5(v) => v.0.migrate_to(&Current::new()).await?,
+            // Version::V0_2_6(v) => v.0.migrate_to(&Current::new()).await?,
+            // Version::V0_2_7(v) => v.0.migrate_to(&Current::new()).await?,
+            // Version::V0_2_8(v) => v.0.migrate_to(&Current::new()).await?,
+            // Version::V0_2_9(v) => v.0.migrate_to(&Current::new()).await?,
+            // Version::V0_2_10(v) => v.0.migrate_to(&Current::new()).await?,
+            // Version::V0_2_11(v) => v.0.migrate_to(&Current::new()).await?,
+            // Version::V0_2_12(v) => v.0.migrate_to(&Current::new()).await?,
             Version::Other(_) => (),
             // TODO find some way to automate this?
         }
@@ -188,15 +187,15 @@ pub async fn self_update(requirement: emver::VersionRange) -> Result<(), Error> 
     let response = reqwest::get(&url)
         .compat()
         .await
-        .with_code(crate::error::NETWORK_ERROR)?
+        .with_kind(crate::ErrorKind::Network)?
         .error_for_status()
-        .with_code(crate::error::REGISTRY_ERROR)?;
+        .with_kind(crate::ErrorKind::Registry)?;
     let tmp_appmgr_path = PersistencePath::from_ref("appmgr").tmp();
     if let Some(parent) = tmp_appmgr_path.parent() {
         if !parent.exists() {
             tokio::fs::create_dir_all(parent)
                 .await
-                .with_code(crate::error::FILESYSTEM_ERROR)?;
+                .with_kind(crate::ErrorKind::Filesystem)?;
         }
     }
     let mut f = tokio::fs::OpenOptions::new()
@@ -204,8 +203,12 @@ pub async fn self_update(requirement: emver::VersionRange) -> Result<(), Error> 
         .write(true)
         .open(&tmp_appmgr_path)
         .await
-        .with_context(|e| format!("{}: {}", tmp_appmgr_path.display(), e))
-        .with_code(crate::error::FILESYSTEM_ERROR)?;
+        .with_ctx(|_| {
+            (
+                crate::ErrorKind::Filesystem,
+                tmp_appmgr_path.display().to_string(),
+            )
+        })?;
     tokio::io::copy(
         &mut AsyncCompat(
             response
@@ -215,8 +218,7 @@ pub async fn self_update(requirement: emver::VersionRange) -> Result<(), Error> 
         ),
         &mut f,
     )
-    .await
-    .no_code()?;
+    .await?;
     drop(f);
     crate::ensure_code!(
         tokio::process::Command::new("chmod")
@@ -226,7 +228,7 @@ pub async fn self_update(requirement: emver::VersionRange) -> Result<(), Error> 
             .await?
             .status
             .success(),
-        crate::error::FILESYSTEM_ERROR,
+        crate::ErrorKind::Filesystem,
         "chmod failed"
     );
     let out = std::process::Command::new(&tmp_appmgr_path)
@@ -234,49 +236,49 @@ pub async fn self_update(requirement: emver::VersionRange) -> Result<(), Error> 
         .stdout(std::process::Stdio::piped())
         .spawn()?
         .wait_with_output()
-        .with_context(|e| format!("{} semver: {}", tmp_appmgr_path.display(), e))
-        .no_code()?;
-    let out_str = std::str::from_utf8(&out.stdout).no_code()?;
+        .with_ctx(|_| {
+            (
+                crate::ErrorKind::Unknown,
+                format!("{} semver", tmp_appmgr_path.display()),
+            )
+        })?;
+    let out_str = std::str::from_utf8(&out.stdout)?;
     log::info!("Migrating to version {}", out_str);
     let v: Version = serde_yaml::from_str(out_str)
-        .with_context(|e| format!("{}: {:?}", e, out_str))
-        .with_code(crate::error::SERDE_ERROR)?;
+        .with_ctx(|_| (crate::ErrorKind::Deserialization, format!("{:?}", out_str)))?;
     match v {
         Version::V0_0_0(v) => Current::new().migrate_to(&v.0).await?,
-        Version::V0_1_0(v) => Current::new().migrate_to(&v.0).await?,
-        Version::V0_1_1(v) => Current::new().migrate_to(&v.0).await?,
-        Version::V0_1_2(v) => Current::new().migrate_to(&v.0).await?,
-        Version::V0_1_3(v) => Current::new().migrate_to(&v.0).await?,
-        Version::V0_1_4(v) => Current::new().migrate_to(&v.0).await?,
-        Version::V0_1_5(v) => Current::new().migrate_to(&v.0).await?,
-        Version::V0_2_0(v) => Current::new().migrate_to(&v.0).await?,
-        Version::V0_2_1(v) => Current::new().migrate_to(&v.0).await?,
-        Version::V0_2_2(v) => Current::new().migrate_to(&v.0).await?,
-        Version::V0_2_3(v) => Current::new().migrate_to(&v.0).await?,
-        Version::V0_2_4(v) => Current::new().migrate_to(&v.0).await?,
-        Version::V0_2_5(v) => Current::new().migrate_to(&v.0).await?,
-        Version::V0_2_6(v) => Current::new().migrate_to(&v.0).await?,
-        Version::V0_2_7(v) => Current::new().migrate_to(&v.0).await?,
-        Version::V0_2_8(v) => Current::new().migrate_to(&v.0).await?,
-        Version::V0_2_9(v) => Current::new().migrate_to(&v.0).await?,
-        Version::V0_2_10(v) => Current::new().migrate_to(&v.0).await?,
-        Version::V0_2_11(v) => Current::new().migrate_to(&v.0).await?,
-        Version::V0_2_12(v) => Current::new().migrate_to(&v.0).await?,
+        // Version::V0_1_0(v) => Current::new().migrate_to(&v.0).await?,
+        // Version::V0_1_1(v) => Current::new().migrate_to(&v.0).await?,
+        // Version::V0_1_2(v) => Current::new().migrate_to(&v.0).await?,
+        // Version::V0_1_3(v) => Current::new().migrate_to(&v.0).await?,
+        // Version::V0_1_4(v) => Current::new().migrate_to(&v.0).await?,
+        // Version::V0_1_5(v) => Current::new().migrate_to(&v.0).await?,
+        // Version::V0_2_0(v) => Current::new().migrate_to(&v.0).await?,
+        // Version::V0_2_1(v) => Current::new().migrate_to(&v.0).await?,
+        // Version::V0_2_2(v) => Current::new().migrate_to(&v.0).await?,
+        // Version::V0_2_3(v) => Current::new().migrate_to(&v.0).await?,
+        // Version::V0_2_4(v) => Current::new().migrate_to(&v.0).await?,
+        // Version::V0_2_5(v) => Current::new().migrate_to(&v.0).await?,
+        // Version::V0_2_6(v) => Current::new().migrate_to(&v.0).await?,
+        // Version::V0_2_7(v) => Current::new().migrate_to(&v.0).await?,
+        // Version::V0_2_8(v) => Current::new().migrate_to(&v.0).await?,
+        // Version::V0_2_9(v) => Current::new().migrate_to(&v.0).await?,
+        // Version::V0_2_10(v) => Current::new().migrate_to(&v.0).await?,
+        // Version::V0_2_11(v) => Current::new().migrate_to(&v.0).await?,
+        // Version::V0_2_12(v) => Current::new().migrate_to(&v.0).await?,
         Version::Other(_) => (),
         // TODO find some way to automate this?
     };
     let cur_path = std::path::Path::new("/usr/local/bin/appmgr");
     tokio::fs::rename(&tmp_appmgr_path, &cur_path)
         .await
-        .with_context(|e| {
-            format!(
-                "{} -> {}: {}",
-                tmp_appmgr_path.display(),
-                cur_path.display(),
-                e
+        .with_ctx(|_| {
+            (
+                crate::ErrorKind::Filesystem,
+                format!("{} -> {}", tmp_appmgr_path.display(), cur_path.display()),
             )
-        })
-        .with_code(crate::error::FILESYSTEM_ERROR)?;
+        })?;
 
     Ok(())
 }
