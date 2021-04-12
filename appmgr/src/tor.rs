@@ -270,7 +270,10 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                             .arg(&key_path)
                             .invoke(crate::ErrorKind::OpenSSL)
                             .await
-                            .map_err(|e| crate::Error::new(e.source.context("GenKey"), e.kind))?;
+                            .map_err(|e| {
+                                let ctx = format!("GenKey: {}", e);
+                                crate::Error::new(e.source.context(ctx), e.kind)
+                            })?;
                         tokio::fs::write(
                             &conf_path,
                             format!(
@@ -295,7 +298,10 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                             .arg(&req_path)
                             .invoke(crate::ErrorKind::OpenSSL)
                             .await
-                            .map_err(|e| crate::Error::new(e.source.context("Req"), e.kind))?;
+                            .map_err(|e| {
+                                let ctx = format!("Req: {}", e);
+                                crate::Error::new(e.source.context(ctx), e.kind)
+                            })?;
                         tokio::process::Command::new("openssl")
                             .arg("ca")
                             .arg("-batch")
@@ -317,7 +323,10 @@ pub async fn write_lan_services(hidden_services: &ServicesMap) -> Result<(), Err
                             .arg(&cert_path)
                             .invoke(crate::ErrorKind::OpenSSL)
                             .await
-                            .map_err(|e| crate::Error::new(e.source.context("CA"), e.kind))?;
+                            .map_err(|e| {
+                                let ctx = format!("CA: {}", e);
+                                crate::Error::new(e.source.context(ctx), e.kind)
+                            })?;
                         log::info!("Writing fullchain to: {}", fullchain_path.path().display());
                         tokio::io::copy(
                             &mut tokio::fs::File::open(&cert_path).await?,

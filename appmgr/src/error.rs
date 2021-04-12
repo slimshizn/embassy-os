@@ -31,6 +31,8 @@ pub enum ErrorKind {
     OpenSSL = 25,
     Tor = 26,
     ConfigGen = 27,
+    ParseInt = 28,
+    Database = 29,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -63,6 +65,8 @@ impl ErrorKind {
             OpenSSL => "OpenSSL Error",
             Tor => "Tor Daemon Error",
             ConfigGen => "Config Generation Error",
+            ParseInt => "Integer Parsing Error",
+            Database => "Database Error",
         }
     }
 }
@@ -92,42 +96,37 @@ impl Error {
 }
 impl From<std::io::Error> for Error {
     fn from(e: std::io::Error) -> Self {
-        Error {
-            source: e.into(),
-            kind: ErrorKind::Filesystem,
-        }
+        Error::new(e, ErrorKind::Filesystem)
     }
 }
 impl From<std::str::Utf8Error> for Error {
     fn from(e: std::str::Utf8Error) -> Self {
-        Error {
-            source: e.into(),
-            kind: ErrorKind::Utf8,
-        }
+        Error::new(e, ErrorKind::Utf8)
     }
 }
 impl From<std::string::FromUtf8Error> for Error {
     fn from(e: std::string::FromUtf8Error) -> Self {
-        Error {
-            source: e.into(),
-            kind: ErrorKind::Utf8,
-        }
+        Error::new(e, ErrorKind::Utf8)
     }
 }
 impl From<emver::ParseError> for Error {
     fn from(e: emver::ParseError) -> Self {
-        Error {
-            source: e.into(),
-            kind: ErrorKind::ParseVersion,
-        }
+        Error::new(e, ErrorKind::ParseVersion)
     }
 }
 impl From<rpc_toolkit::url::ParseError> for Error {
     fn from(e: rpc_toolkit::url::ParseError) -> Self {
-        Error {
-            source: e.into(),
-            kind: ErrorKind::ParseUrl,
-        }
+        Error::new(e, ErrorKind::ParseUrl)
+    }
+}
+impl From<std::num::ParseIntError> for Error {
+    fn from(e: std::num::ParseIntError) -> Self {
+        Error::new(e, ErrorKind::ParseInt)
+    }
+}
+impl From<patch_db::Error> for Error {
+    fn from(e: patch_db::Error) -> Self {
+        Error::new(e, ErrorKind::Database)
     }
 }
 impl From<Error> for RpcError {
@@ -167,7 +166,9 @@ where
     ) -> Result<T, Error> {
         self.map_err(|e| {
             let (kind, ctx) = f(&e);
-            let source = anyhow::Error::from(e).context(ctx);
+            let source = anyhow::Error::from(e);
+            let ctx = format!("{}: {}", ctx, source);
+            let source = source.context(ctx);
             Error {
                 kind,
                 source: source.into(),

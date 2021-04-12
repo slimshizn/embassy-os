@@ -1,6 +1,7 @@
-use std::fmt;
+use std::future::Future;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 use file_lock::FileLock;
 use tokio::fs::File;
@@ -345,14 +346,17 @@ where
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Never {}
-pub fn absurd<T>(lol: Never) -> T {
-    match lol {}
+impl Never {}
+impl Never {
+    pub fn absurd<T>(self) -> T {
+        match self {}
+    }
 }
-impl fmt::Display for Never {
-    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        absurd(self.clone())
+impl std::fmt::Display for Never {
+    fn fmt(&self, _f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.absurd()
     }
 }
 impl std::error::Error for Never {}
@@ -561,3 +565,89 @@ pub trait ApplyRef {
 
 impl<T> Apply for T {}
 impl<T> ApplyRef for T {}
+
+pub fn deserialize_from_str<
+    'de,
+    D: serde::de::Deserializer<'de>,
+    T: FromStr<Err = E>,
+    E: std::fmt::Display,
+>(
+    deserializer: D,
+) -> std::result::Result<T, D::Error> {
+    struct Visitor<T: FromStr<Err = E>, E>(std::marker::PhantomData<T>);
+    impl<'de, T: FromStr<Err = Err>, Err: std::fmt::Display> serde::de::Visitor<'de>
+        for Visitor<T, Err>
+    {
+        type Value = T;
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(formatter, "a parsable string")
+        }
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            v.parse().map_err(|e| serde::de::Error::custom(e))
+        }
+    }
+    deserializer.deserialize_str(Visitor(std::marker::PhantomData))
+}
+
+pub fn deserialize_from_str_opt<
+    'de,
+    D: serde::de::Deserializer<'de>,
+    T: FromStr<Err = E>,
+    E: std::fmt::Display,
+>(
+    deserializer: D,
+) -> std::result::Result<Option<T>, D::Error> {
+    struct Visitor<T: FromStr<Err = E>, E>(std::marker::PhantomData<T>);
+    impl<'de, T: FromStr<Err = Err>, Err: std::fmt::Display> serde::de::Visitor<'de>
+        for Visitor<T, Err>
+    {
+        type Value = Option<T>;
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(formatter, "a parsable string")
+        }
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            v.parse().map(Some).map_err(|e| serde::de::Error::custom(e))
+        }
+        fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+        where
+            D: serde::de::Deserializer<'de>,
+        {
+            deserializer.deserialize_str(Visitor(std::marker::PhantomData))
+        }
+        fn visit_none<E>(self) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(None)
+        }
+        fn visit_unit<E>(self) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(None)
+        }
+    }
+    deserializer.deserialize_any(Visitor(std::marker::PhantomData))
+}
+
+pub async fn daemon<F: Fn() -> Fut, Fut: Future<Output = ()> + Send + 'static>(
+    f: F,
+    max_cooldown: std::time::Duration,
+) -> Result<Never, anyhow::Error> {
+    loop {
+        match tokio::spawn(f()).await {
+            Err(e) if e.is_panic() => return Err(anyhow::anyhow!("daemon panicked!")),
+            _ => (),
+        }
+        tokio::select! {
+            _ = tokio::task::yield_now() => { () }
+            _ = tokio::time::sleep(max_cooldown) => { () }
+        };
+    }
+}

@@ -1,6 +1,12 @@
 use rpc_toolkit::reqwest::Client;
 use rpc_toolkit::url::{Host, Url};
-use rpc_toolkit::{Context, SeedableContext};
+use rpc_toolkit::Context;
+
+mod cli;
+mod rpc;
+
+pub use cli::CliContext;
+pub use rpc::RpcContext;
 
 #[derive(Debug, Clone)]
 pub struct ExtendedContext<T, U> {
@@ -26,11 +32,6 @@ impl<T> From<T> for ExtendedContext<T, ()> {
         }
     }
 }
-impl<T: Clone + Context> SeedableContext<T> for ExtendedContext<T, ()> {
-    fn new(seed: T) -> Self {
-        seed.into()
-    }
-}
 impl<T: Context, U> Context for ExtendedContext<T, U> {
     fn host(&self) -> Host<&str> {
         self.base.host()
@@ -49,39 +50,54 @@ impl<T: Context, U> Context for ExtendedContext<T, U> {
     }
 }
 
-pub enum EitherContext<A: Context, B: Context> {
-    A(A),
-    B(B),
+#[derive(Clone)]
+pub enum EitherContext {
+    Cli(CliContext),
+    Rpc(RpcContext),
 }
-impl<A: Context, B: Context> Context for EitherContext<A, B> {
+impl EitherContext {
+    pub fn as_cli(&self) -> Option<&CliContext> {
+        match self {
+            EitherContext::Cli(a) => Some(a),
+            _ => None,
+        }
+    }
+    pub fn as_rpc(&self) -> Option<&RpcContext> {
+        match self {
+            EitherContext::Rpc(a) => Some(a),
+            _ => None,
+        }
+    }
+}
+impl Context for EitherContext {
     fn host(&self) -> Host<&str> {
         match self {
-            EitherContext::A(a) => a.host(),
-            EitherContext::B(b) => b.host(),
+            EitherContext::Cli(a) => a.host(),
+            EitherContext::Rpc(b) => b.host(),
         }
     }
     fn port(&self) -> u16 {
         match self {
-            EitherContext::A(a) => a.port(),
-            EitherContext::B(b) => b.port(),
+            EitherContext::Cli(a) => a.port(),
+            EitherContext::Rpc(b) => b.port(),
         }
     }
     fn protocol(&self) -> &str {
         match self {
-            EitherContext::A(a) => a.protocol(),
-            EitherContext::B(b) => b.protocol(),
+            EitherContext::Cli(a) => a.protocol(),
+            EitherContext::Rpc(b) => b.protocol(),
         }
     }
     fn url(&self) -> Url {
         match self {
-            EitherContext::A(a) => a.url(),
-            EitherContext::B(b) => b.url(),
+            EitherContext::Cli(a) => a.url(),
+            EitherContext::Rpc(b) => b.url(),
         }
     }
     fn client(&self) -> &Client {
         match self {
-            EitherContext::A(a) => a.client(),
-            EitherContext::B(b) => b.client(),
+            EitherContext::Cli(a) => a.client(),
+            EitherContext::Rpc(b) => b.client(),
         }
     }
 }

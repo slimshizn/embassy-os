@@ -381,10 +381,10 @@ impl Defaultable for ValueSpecAny {
         timeout: &Option<Duration>,
     ) -> Result<Value, Self::Error> {
         match self {
-            ValueSpecAny::Boolean(a) => a.gen(rng, timeout).map_err(crate::util::absurd),
-            ValueSpecAny::Enum(a) => a.gen(rng, timeout).map_err(crate::util::absurd),
+            ValueSpecAny::Boolean(a) => a.gen(rng, timeout).map_err(crate::util::Never::absurd),
+            ValueSpecAny::Enum(a) => a.gen(rng, timeout).map_err(crate::util::Never::absurd),
             ValueSpecAny::List(a) => a.gen(rng, timeout),
-            ValueSpecAny::Number(a) => a.gen(rng, timeout).map_err(crate::util::absurd),
+            ValueSpecAny::Number(a) => a.gen(rng, timeout).map_err(crate::util::Never::absurd),
             ValueSpecAny::Object(a) => a.gen(rng, timeout),
             ValueSpecAny::String(a) => a.gen(rng, timeout).map_err(ConfigurationError::from),
             ValueSpecAny::Union(a) => a.gen(rng, timeout),
@@ -696,8 +696,8 @@ impl Defaultable for ValueSpecList {
         timeout: &Option<Duration>,
     ) -> Result<Value, Self::Error> {
         match self {
-            ValueSpecList::Enum(a) => a.gen(rng, timeout).map_err(crate::util::absurd),
-            ValueSpecList::Number(a) => a.gen(rng, timeout).map_err(crate::util::absurd),
+            ValueSpecList::Enum(a) => a.gen(rng, timeout).map_err(crate::util::Never::absurd),
+            ValueSpecList::Number(a) => a.gen(rng, timeout).map_err(crate::util::Never::absurd),
             ValueSpecList::Object(a) => {
                 let mut ret = match a.gen(rng, timeout).unwrap() {
                     Value::List(l) => l,

@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate pest_derive;
 
+pub const CONFIG_PATH: &'static str = "/etc/embassy/embassy.yaml";
 pub const TOR_RC: &'static str = "/root/appmgr/tor/torrc";
 pub const SERVICES_YAML: &'static str = "tor/services.yaml";
 pub const VOLUMES: &'static str = "/root/volumes";
@@ -43,6 +44,7 @@ pub mod util;
 pub mod version;
 
 pub use config::{configure, Config};
+use context::EitherContext;
 pub use control::{restart_app, start_app, stop_app, stop_dependents};
 pub use error::{Error, ErrorKind, ResultExt};
 pub use install::{install_name, install_path, install_url};
@@ -55,6 +57,6 @@ pub use update::update;
 pub use version::{init, self_update};
 
 #[command]
-pub fn main_api() -> Result<String, RpcError> {
+pub fn main_api(#[context] ctx: EitherContext) -> Result<String, RpcError> {
     Ok(todo!())
 }

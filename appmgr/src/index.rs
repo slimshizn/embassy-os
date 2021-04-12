@@ -116,7 +116,8 @@ pub async fn index<P: AsRef<Path>>(dir: P) -> Result<AppIndex, Error> {
                     let ext = path.extension();
                     if ext == Some(OsStr::new("s9pk")) {
                         let info = info_full(&path, true, false).await.map_err(|mut e| {
-                            e.source = e.source.context(path.display().to_string()).into();
+                            let ctx = format!("{}: {}", path.display(), e.source);
+                            e.source = e.source.context(ctx).into();
                             e
                         })?;
                         idx.add(info.manifest.unwrap());
