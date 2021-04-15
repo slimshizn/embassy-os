@@ -1,5 +1,6 @@
 use emver::Version;
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 use super::id::PackageId;
 use crate::dependencies::Dependencies;
@@ -8,9 +9,14 @@ use crate::dependencies::Dependencies;
 #[serde(rename_all = "kebab-case")]
 pub struct Manifest {
     pub id: PackageId,
-    pub version: Version,
     pub title: String,
+    pub version: Version,
     pub release_notes: String,
+    pub license: String, // type of license
+    pub wrapper_repo: Url,
+    pub upstream_repo: Url,
+    pub support_page: Option<Url>,
+    pub marketing_page: Option<Url>,
     #[serde(default)]
     pub alerts: Alerts,
     // #[serde(default = "current_version")]

@@ -526,6 +526,7 @@ dependencies = [
  "tokio-stream",
  "tokio-tar",
  "typed-builder",
+ "url",
 ]
 
 [[package]]
@@ -2517,6 +2518,7 @@ dependencies = [
  "idna",
  "matches",
  "percent-encoding",
+ "serde",
 ]
 
 [[package]]
