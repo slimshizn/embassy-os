@@ -19,15 +19,18 @@ lazy_static::lazy_static! {
     pub static ref QUIET: tokio::sync::RwLock<bool> = tokio::sync::RwLock::new(!std::env::var("APPMGR_QUIET").map(|a| a == "0").unwrap_or(true));
 }
 
-pub mod actions;
+pub mod action;
+pub mod actions; // deprecated
 pub mod apps;
-pub mod backup;
+pub mod backup; // deprecated
+pub mod backup_new;
 pub mod config;
 pub mod context;
 pub mod control;
 pub mod dependencies;
 pub mod disks;
 pub mod error;
+pub mod id;
 pub mod index;
 pub mod inspect;
 pub mod install;

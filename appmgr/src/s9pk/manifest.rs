@@ -2,8 +2,23 @@ use emver::Version;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use super::id::PackageId;
+use crate::action::Action;
 use crate::dependencies::Dependencies;
+use crate::id::Id;
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
+pub struct PackageId<S: AsRef<str> = String>(Id<S>);
+impl<'de, S> Deserialize<'de> for PackageId<S>
+where
+    S: AsRef<str>,
+    Id<S>: Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        Ok(PackageId(Deserialize::deserialize(deserializer)?))
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -17,6 +32,7 @@ pub struct Manifest {
     pub upstream_repo: Url,
     pub support_page: Option<Url>,
     pub marketing_page: Option<Url>,
+    pub main: Action,
     #[serde(default)]
     pub alerts: Alerts,
     // #[serde(default = "current_version")]
@@ -25,8 +41,6 @@ pub struct Manifest {
     pub interfaces: Interfaces,
     // #[serde(default)]
     pub backup: BackupStrategy,
-    // #[serde(default)]
-    pub volumes: VolumeConfig,
     // #[serde(default)]
     pub actions: Actions,
     // #[serde(default)]
