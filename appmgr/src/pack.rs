@@ -56,7 +56,7 @@ pub async fn pack(path: &str, output: &str) -> Result<(), crate::Error> {
         std::io::Cursor::new(bin_manifest),
     )
     .await?;
-    let manifest = manifest.into_latest();
+    let manifest = manifest.into_latest()?;
     crate::ensure_code!(
         crate::version::Current::new()
             .semver()
@@ -210,7 +210,7 @@ pub async fn verify(path: &str) -> Result<(), crate::Error> {
     );
     log::trace!("Deserializing manifest.");
     let manifest: Manifest = from_cbor_async_reader(manifest).await?;
-    let manifest = manifest.into_latest();
+    let manifest = manifest.into_latest()?;
     crate::ensure_code!(
         crate::version::Current::new()
             .semver()

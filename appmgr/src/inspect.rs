@@ -59,7 +59,7 @@ pub async fn info_full<P: AsRef<Path>>(
     );
     log::trace!("Deserializing manifest.");
     let manifest: Manifest = from_cbor_async_reader(manifest).await?;
-    let manifest = manifest.into_latest();
+    let manifest = manifest.into_latest()?;
     crate::ensure_code!(
         crate::version::Current::new()
             .semver()
@@ -131,7 +131,7 @@ pub async fn print_instructions<P: AsRef<Path>>(path: P) -> Result<(), Error> {
     );
     log::trace!("Deserializing manifest.");
     let manifest: Manifest = from_cbor_async_reader(manifest).await?;
-    let manifest = manifest.into_latest();
+    let manifest = manifest.into_latest()?;
     crate::ensure_code!(
         crate::version::Current::new()
             .semver()

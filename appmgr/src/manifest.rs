@@ -4,8 +4,8 @@ use linear_map::LinearMap;
 
 use crate::actions::Action;
 use crate::dependencies::Dependencies;
-use crate::tor::HiddenServiceVersion;
-use crate::tor::PortMapping;
+use crate::tor::{HiddenServiceVersion, PortMapping};
+use crate::Error;
 
 pub type ManifestLatest = ManifestV0;
 
@@ -79,9 +79,16 @@ pub enum Manifest {
     V0(ManifestV0),
 }
 impl Manifest {
-    pub fn into_latest(self) -> ManifestLatest {
+    pub fn into_latest(self) -> Result<ManifestLatest, Error> {
         match self {
-            Manifest::V0(m) => m,
+            Manifest::V0(m) => Ok(m),
+            _ => Err(Error::new(
+                anyhow::anyhow!(
+                    "Unsupported Embassy Version: expected {}",
+                    emver::VersionRange::Anchor(emver::LT, emver::Version::new(0, 3, 0, 0))
+                ),
+                crate::error::ErrorKind::VersionIncompatible,
+            )),
         }
     }
 }

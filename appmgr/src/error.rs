@@ -33,6 +33,8 @@ pub enum ErrorKind {
     ConfigGen = 27,
     ParseInt = 28,
     Database = 29,
+    InvalidPackageId = 30,
+    InvalidSignature = 31,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -50,7 +52,7 @@ impl ErrorKind {
             Registry => "Registry Error",
             Serialization => "Serialization Error",
             Deserialization => "Deserialization Error",
-            Utf8 => "UTF8 Parse Error",
+            Utf8 => "UTF-8 Parse Error",
             ParseVersion => "Version Parsing Error",
             Duplicity => "Duplicity Error",
             Nginx => "Nginx Error",
@@ -67,6 +69,8 @@ impl ErrorKind {
             ConfigGen => "Config Generation Error",
             ParseInt => "Integer Parsing Error",
             Database => "Database Error",
+            InvalidPackageId => "Invalid Package ID",
+            InvalidSignature => "Invalid Signature",
         }
     }
 }
@@ -127,6 +131,11 @@ impl From<std::num::ParseIntError> for Error {
 impl From<patch_db::Error> for Error {
     fn from(e: patch_db::Error) -> Self {
         Error::new(e, ErrorKind::Database)
+    }
+}
+impl From<ed25519_dalek::SignatureError> for Error {
+    fn from(e: ed25519_dalek::SignatureError) -> Self {
+        Error::new(e, ErrorKind::InvalidSignature)
     }
 }
 impl From<Error> for RpcError {

@@ -187,7 +187,7 @@ pub async fn manifest(id: &str) -> Result<ManifestLatest, Error> {
             .await?,
     )
     .await?;
-    Ok(manifest.into_latest())
+    manifest.into_latest()
 }
 
 pub async fn config(id: &str) -> Result<AppConfig, Error> {
