@@ -652,9 +652,7 @@ pub async fn daemon<F: Fn() -> Fut, Fut: Future<Output = ()> + Send + 'static>(
     }
 }
 
-pub trait SOption<T>: SOptionSealed<T> {}
-trait SOptionSealed<T> {}
-impl<T: SOptionSealed<U>, U> SOption<U> for T {}
+pub trait SOption<T> {}
 pub struct SSome<T>(T);
 impl<T> SSome<T> {
     pub fn into(self) -> T {
@@ -666,11 +664,11 @@ impl<T> From<T> for SSome<T> {
         SSome(t)
     }
 }
-impl<T> SOptionSealed<T> for SSome<T> {}
+impl<T> SOption<T> for SSome<T> {}
 pub struct SNone<T>(PhantomData<T>);
 impl<T> SNone<T> {
     pub fn new() -> Self {
         SNone(PhantomData)
     }
 }
-impl<T> SOptionSealed<T> for SNone<T> {}
+impl<T> SOption<T> for SNone<T> {}

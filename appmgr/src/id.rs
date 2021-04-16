@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::fmt::Debug;
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -26,6 +27,16 @@ impl<S: AsRef<str>> Id<S> {
         } else {
             Err(InvalidId)
         }
+    }
+}
+impl<S: AsRef<str>> std::fmt::Display for Id<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.as_ref())
+    }
+}
+impl<S: AsRef<str>> AsRef<str> for Id<S> {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
     }
 }
 impl<'de> Deserialize<'de> for Id<Cow<'de, str>> {
@@ -82,29 +93,19 @@ impl<'de> Deserialize<'de> for Id<&'de str> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
-pub struct VolumeId<S: AsRef<str> = String>(Id<S>);
-impl<'de, S> Deserialize<'de> for VolumeId<S>
-where
-    S: AsRef<str>,
-    Id<S>: Deserialize<'de>,
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        Ok(VolumeId(Deserialize::deserialize(deserializer)?))
+pub struct ImageId<S: AsRef<str> = String>(Id<S>);
+impl<S: AsRef<str>> std::fmt::Display for ImageId<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", &self.0)
     }
 }
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
-pub struct ImageId<S: AsRef<str> = String>(Id<S>);
 impl<S: AsRef<str>> ImageId<S> {
     pub fn for_package(
         &self,
         pkg_id: &crate::s9pk::manifest::PackageId,
         pkg_version: &emver::Version,
     ) -> String {
-        todo!()
+        format!("start9/{}/{}:{}", pkg_id, self.0, pkg_version)
     }
 }
 impl<'de, S> Deserialize<'de> for ImageId<S>

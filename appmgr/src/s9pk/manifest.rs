@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use emver::Version;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -7,6 +9,21 @@ use crate::dependencies::Dependencies;
 use crate::id::Id;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
 pub struct PackageId<S: AsRef<str> = String>(Id<S>);
+impl<S: AsRef<str>> std::fmt::Display for PackageId<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", &self.0)
+    }
+}
+impl<S: AsRef<str>> AsRef<str> for PackageId<S> {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+impl<S: AsRef<str>> AsRef<Path> for PackageId<S> {
+    fn as_ref(&self) -> &Path {
+        self.0.as_ref().as_ref()
+    }
+}
 impl<'de, S> Deserialize<'de> for PackageId<S>
 where
     S: AsRef<str>,

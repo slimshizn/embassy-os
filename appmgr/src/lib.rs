@@ -46,6 +46,7 @@ pub mod tor;
 pub mod update;
 pub mod util;
 pub mod version;
+pub mod volume;
 
 pub use config::{configure, Config};
 use context::EitherContext;
