@@ -4,9 +4,10 @@ use emver::Version;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use crate::action::Action;
+use crate::action::{Action, ActionImplementation};
 use crate::dependencies::Dependencies;
 use crate::id::Id;
+use crate::volume::Volumes;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
 pub struct PackageId<S: AsRef<str> = String>(Id<S>);
 impl<S: AsRef<str>> std::fmt::Display for PackageId<S> {
@@ -49,7 +50,8 @@ pub struct Manifest {
     pub upstream_repo: Url,
     pub support_page: Option<Url>,
     pub marketing_page: Option<Url>,
-    pub main: Action,
+    pub main: ActionImplementation,
+    pub volumes: Volumes,
     #[serde(default)]
     pub alerts: Alerts,
     // #[serde(default = "current_version")]

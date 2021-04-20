@@ -35,6 +35,7 @@ pub enum ErrorKind {
     Database = 29,
     InvalidPackageId = 30,
     InvalidSignature = 31,
+    Backup = 32,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -71,6 +72,7 @@ impl ErrorKind {
             Database => "Database Error",
             InvalidPackageId => "Invalid Package ID",
             InvalidSignature => "Invalid Signature",
+            Backup => "Backup Error",
         }
     }
 }

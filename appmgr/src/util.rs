@@ -1,9 +1,11 @@
 use std::future::Future;
 use std::marker::PhantomData;
+use std::net::Ipv4Addr;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use file_lock::FileLock;
+use id_pool::IdPool;
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 
@@ -672,3 +674,23 @@ impl<T> SNone<T> {
     }
 }
 impl<T> SOption<T> for SNone<T> {}
+
+pub struct IpPool(IdPool);
+impl IpPool {
+    pub fn new() -> Self {
+        let mut pool = IdPool::new();
+        IpPool(pool)
+    }
+
+    pub fn get(&mut self) -> Option<Ipv4Addr> {
+        let id = self.0.request_id()?;
+        let ip = u32::from_be_bytes(crate::HOST_IP) + id as u32;
+        Some(ip.into())
+    }
+
+    pub fn put(&mut self, ip: Ipv4Addr) {
+        let ip = u32::from_be_bytes(ip.octets());
+        let id = ip - u32::from_be_bytes(crate::HOST_IP);
+        self.0.return_id(id as u16);
+    }
+}

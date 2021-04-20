@@ -495,6 +495,7 @@ dependencies = [
  "git-version",
  "hashlink",
  "http",
+ "id-pool",
  "itertools 0.10.0",
  "lazy_static",
  "libc",
@@ -984,6 +985,15 @@ dependencies = [
  "native-tls",
  "tokio 1.5.0",
  "tokio-native-tls",
+]
+
+[[package]]
+name = "id-pool"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e33832e3000c359e3f67781634a5e6d58bffa8c5247c1464bd2e483f1a79cb0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

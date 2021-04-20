@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::fmt::Debug;
+use std::path::Path;
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -118,5 +119,30 @@ where
         D: Deserializer<'de>,
     {
         Ok(ImageId(Deserialize::deserialize(deserializer)?))
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
+pub struct InterfaceId<S: AsRef<str> = String>(Id<S>);
+impl<S: AsRef<str>> std::fmt::Display for InterfaceId<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", &self.0)
+    }
+}
+impl<'de, S> Deserialize<'de> for InterfaceId<S>
+where
+    S: AsRef<str>,
+    Id<S>: Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(InterfaceId(Deserialize::deserialize(deserializer)?))
+    }
+}
+impl<S: AsRef<str>> AsRef<Path> for InterfaceId<S> {
+    fn as_ref(&self) -> &Path {
+        self.0.as_ref().as_ref()
     }
 }

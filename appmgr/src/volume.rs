@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use hashlink::LinkedHashMap;
 use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::id::Id;
+use crate::id::{Id, InterfaceId};
 use crate::s9pk::manifest::PackageId;
 
 pub const APP_DATA_DIR: &'static str = "/mnt/embassy-os/app-data";
@@ -53,7 +53,7 @@ impl Volumes {
 #[serde(rename_all = "kebab-case")]
 pub enum Volume {
     #[serde(rename_all = "kebab-case")]
-    Standard,
+    Data,
     #[serde(rename_all = "kebab-case")]
     Pointer {
         package_id: PackageId,
@@ -61,19 +61,17 @@ pub enum Volume {
         path: PathBuf,
         read_only: bool,
     },
-    Certificates {
-        package_id: Option<PackageId>,
+    Certificate {
         interface_id: InterfaceId,
     },
     HiddenService {
-        package_id: Option<PackageId>,
         interface_id: InterfaceId,
     },
 }
 impl Volume {
     pub fn path_for(&self, pkg_id: &PackageId, volume_id: &VolumeId) -> PathBuf {
         match self {
-            Volume::Standard => Path::new(APP_DATA_DIR)
+            Volume::Data => Path::new(APP_DATA_DIR)
                 .join(pkg_id)
                 .join("volumes")
                 .join(volume_id),
@@ -87,27 +85,21 @@ impl Volume {
                 .join("volumes")
                 .join(volume_id)
                 .join(path),
-            Volume::Certificates {
-                package_id,
-                interface_id,
-            } => Path::new(APP_DATA_DIR)
-                .join(package_id.as_ref().unwrap_or(pkg_id))
+            Volume::Certificate { interface_id } => Path::new(APP_DATA_DIR)
+                .join(pkg_id)
                 .join("certificates")
                 .join(interface_id),
-            Volume::HiddenService {
-                package_id,
-                interface_id,
-            } => Path::new(APP_DATA_DIR)
-                .join(package_id.as_ref().unwrap_or(pkg_id))
+            Volume::HiddenService { interface_id } => Path::new(APP_DATA_DIR)
+                .join(pkg_id)
                 .join("hidden-services")
                 .join(interface_id),
         }
     }
     pub fn read_only(&self) -> bool {
         match self {
-            Volume::Standard => false,
+            Volume::Data => false,
             Volume::Pointer { read_only, .. } => *read_only,
-            Volume::Certificates { .. } => true,
+            Volume::Certificate { .. } => true,
             Volume::HiddenService { .. } => true,
         }
     }

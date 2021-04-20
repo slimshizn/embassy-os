@@ -40,6 +40,7 @@ futures = "0.3.8"
 git-version = "0.3.4"
 hashlink = { version = "0.6.0", features = ["serde_impl"] }
 http = "0.2.3"
+id-pool = { version = "0.2.1", features = ["u16", "serde"], default-features = false }
 itertools = "0.10.0"
 lazy_static = "1.4"
 libc = "0.2.86"
