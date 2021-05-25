@@ -112,11 +112,17 @@ pub struct ConfigurationRes {
 }
 
 // returns apps with changed configurations
+#[command(about = "Configures a package")]
 pub async fn configure(
-    name: &str,
-    config: Option<Config>,
+    #[arg(help = "The package to configure")] id: &str,
+    #[arg(stdin)] config: Option<Config>,
+    #[arg(
+        help = "Max seconds to attempt generating entropy per field",
+        short = "t",
+        long = "timeout"
+    )]
     timeout: Option<Duration>,
-    dry_run: bool,
+    #[arg(help = "Do not commit result", rename = "dry-run", long = "dry-run")] dry_run: bool,
 ) -> Result<ConfigurationRes, crate::Error> {
     async fn handle_broken_dependent(
         name: &str,
@@ -293,7 +299,7 @@ pub async fn configure(
         .boxed()
     }
     let mut res = ConfigurationRes::default();
-    configure_rec(name, config, timeout, dry_run, &mut res).await?;
+    configure_rec(id, config, timeout, dry_run, &mut res).await?;
     Ok(res)
 }
 

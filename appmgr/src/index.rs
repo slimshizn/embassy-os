@@ -95,7 +95,10 @@ impl FromIterator<ManifestLatest> for AppIndex {
     }
 }
 
-pub async fn index<P: AsRef<Path>>(dir: P) -> Result<AppIndex, Error> {
+#[command(help = "Indexes all s9pk files in a directory")]
+pub async fn index<P: AsRef<Path>>(
+    #[arg(help = "Path to the directory to index")] dir: P,
+) -> Result<AppIndex, Error> {
     let dir_path = dir.as_ref();
     let mut idx = AppIndex::default();
     fn index_rec<'a, P: AsRef<Path> + Send + Sync + 'a>(

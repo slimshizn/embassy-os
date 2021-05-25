@@ -281,11 +281,20 @@ pub async fn info(id: &str) -> Result<AppInfo, Error> {
         .map(Clone::clone)
 }
 
+#[command(
+    help = "Prints information about an installed package",
+    rename = "info"
+)]
 pub async fn info_full(
-    id: &str,
-    with_status: bool,
-    with_manifest: bool,
-    with_config: bool,
+    #[arg(help = "ID of the application to print information about")] id: &str,
+    #[arg(rename = "include-status", short = "s", long = "include-status")] with_status: bool,
+    #[arg(rename = "include-manifest", short = "m", long = "include-manifest")] with_manifest: bool,
+    #[arg(rename = "include-config", short = "c", long = "include-config")] with_config: bool,
+    #[arg(
+        rename = "include-dependencies",
+        short = "d",
+        long = "include-dependencies"
+    )]
     with_dependencies: bool,
 ) -> Result<AppInfoFull, Error> {
     Ok(AppInfoFull {
@@ -313,7 +322,18 @@ pub async fn info_full(
     })
 }
 
-pub async fn dependencies(id_version: &str, local_only: bool) -> Result<AppDependencies, Error> {
+#[command(
+    about = "Check dependencies for a package",
+    rename = "check-dependencies"
+)]
+pub async fn dependencies(
+    #[arg(help = "The package to check dependencies for", rename = "id")] id_version: &str,
+    #[arg(
+        help = "Disable reaching out to the Start9 registry if the package isn't installed",
+        rename = "local-only"
+    )]
+    local_only: bool,
+) -> Result<AppDependencies, Error> {
     let mut id_version_iter = id_version.split("@");
     let id = id_version_iter.next().unwrap();
     let version_range = id_version_iter

@@ -160,10 +160,14 @@ pub async fn check_dependencies(
     Ok(deps)
 }
 
+#[command(
+    about = "Automatically configure a dependency",
+    rename = "autoconfigure-dependency"
+)]
 pub async fn auto_configure(
-    dependent: &str,
-    dependency: &str,
-    dry_run: bool,
+    #[arg(help = "The service to autoconfigure a dependency for")] id: &str,
+    #[arg(help = "The dependency to autoconfigure")] dependency: &str,
+    #[arg(help = "Do not commit result", rename = "dry-run", long = "dry-run")] dry_run: bool,
 ) -> Result<crate::config::ConfigurationRes, Error> {
     let (dependent_config, mut dependency_config, manifest) = futures::try_join!(
         crate::apps::config_or_default(dependent),
@@ -171,13 +175,13 @@ pub async fn auto_configure(
         crate::apps::manifest(dependent)
     )?;
     let mut cfgs = LinearMap::new();
-    cfgs.insert(dependent, Cow::Borrowed(&dependent_config));
+    cfgs.insert(id, Cow::Borrowed(&dependent_config));
     cfgs.insert(dependency, Cow::Owned(dependency_config.clone()));
     let dep_info = manifest
         .dependencies
         .0
         .get(dependency)
-        .ok_or_else(|| anyhow::anyhow!("{} Does Not Depend On {}", dependent, dependency))
+        .ok_or_else(|| anyhow::anyhow!("{} Does Not Depend On {}", id, dependency))
         .with_kind(crate::ErrorKind::Dependency)?;
     for rule in &dep_info.config {
         if let Err(e) = rule.apply(dependency, &mut dependency_config, &mut cfgs) {

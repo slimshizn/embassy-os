@@ -5,6 +5,7 @@ use argon2::Config;
 use emver::Version;
 use futures::{try_join, TryStreamExt};
 use rand::Rng;
+use rpc_toolkit::yajrc::RpcError;
 use serde::Serialize;
 use tokio_stream::wrappers::LinesStream;
 
@@ -212,7 +213,7 @@ pub async fn restore_backup<P: AsRef<Path>>(
     )
     .await?;
 
-    // Attempt to configure the service with the config coming from restoration
+    // Attempt to configure the package with the config coming from restoration
     let cfg_path = Path::new(crate::VOLUMES)
         .join(app_id)
         .join("start9")
@@ -251,33 +252,48 @@ pub async fn restore_backup<P: AsRef<Path>>(
     Ok(())
 }
 
+#[command(
+    about = "Manage app data backups",
+    subcommands(backup_to_partition, restore_from_partition)
+)]
+pub async fn backup<T>(#[context] ctx: T) -> Result<T, RpcError> {
+    Ok(ctx)
+}
+
+#[command(about, "Backup current package state", rename = "create")]
 pub async fn backup_to_partition(
-    logicalname: &str,
-    app_id: &str,
+    #[arg(help = "ID of the application to backup data for")] id: &str,
+    #[arg(help = "Logical name of the partition you would like to backup to")] partition: &str,
+    #[arg(
+        short = "p",
+        long = "password",
+        help = "Password to use for encryption of backup file"
+    )]
     password: &str,
 ) -> Result<(), Error> {
     let backup_mount_path = Path::new(crate::BACKUP_MOUNT_POINT);
-    let guard = crate::disks::MountGuard::new(logicalname, &backup_mount_path).await?;
-    let backup_dir_path = backup_mount_path.join(crate::BACKUP_DIR).join(app_id);
+    let guard = crate::disks::MountGuard::new(partition, &backup_mount_path).await?;
+    let backup_dir_path = backup_mount_path.join(crate::BACKUP_DIR).join(id);
     tokio::fs::create_dir_all(&backup_dir_path).await?;
 
-    let res = create_backup(backup_dir_path, app_id, password).await;
+    let res = create_backup(backup_dir_path, id, password).await;
 
     guard.unmount().await?;
 
     res
 }
 
+#[command(about, "Restore app state from backup", rename = "restore")]
 pub async fn restore_from_partition(
-    logicalname: &str,
-    app_id: &str,
-    password: &str,
+    #[arg(help = "ID of the application to restore data for")] id: &str,
+    #[arg(help = "Logical name of the partition to restore data from")] partition: &str,
+    #[arg(help = "Password to use for decryption of backup file")] password: &str,
 ) -> Result<(), Error> {
     let backup_mount_path = Path::new(crate::BACKUP_MOUNT_POINT);
-    let guard = crate::disks::MountGuard::new(logicalname, &backup_mount_path).await?;
-    let backup_dir_path = backup_mount_path.join(crate::BACKUP_DIR).join(app_id);
+    let guard = crate::disks::MountGuard::new(partition, &backup_mount_path).await?;
+    let backup_dir_path = backup_mount_path.join(crate::BACKUP_DIR).join(id);
 
-    let res = restore_backup(backup_dir_path, app_id, password).await;
+    let res = restore_backup(backup_dir_path, id, password).await;
 
     guard.unmount().await?;
 

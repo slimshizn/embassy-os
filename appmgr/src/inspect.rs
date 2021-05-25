@@ -34,10 +34,19 @@ pub struct AppConfig {
     pub rules: Vec<ConfigRuleEntry>,
 }
 
+#[command(
+    about = "Inspects a package",
+    subcommands(info_full, print_instructions)
+)]
+pub async fn disks<T>(#[context] ctx: T) -> Result<T, RpcError> {
+    Ok(ctx)
+}
+
+#[command(about = "Prints information about a package", rename = "info")]
 pub async fn info_full<P: AsRef<Path>>(
-    path: P,
-    with_manifest: bool,
-    with_config: bool,
+    #[arg(help = "Path to the s9pk file to inspect")] path: P,
+    #[arg(rename = "include-manifest", short = "m", long = "include-manifest")] with_manifest: bool,
+    #[arg(rename = "include-config", short = "c", long = "include-config")] with_config: bool,
 ) -> Result<AppInfoFull, Error> {
     let p = path.as_ref();
     log::info!("Opening file.");
@@ -110,7 +119,13 @@ pub async fn info_full<P: AsRef<Path>>(
     })
 }
 
-pub async fn print_instructions<P: AsRef<Path>>(path: P) -> Result<(), Error> {
+#[command(
+    help = "Prints instructions for an installed package",
+    rename = "instructions"
+)]
+pub async fn print_instructions<P: AsRef<Path>>(
+    #[arg(help = "Path to the s9pk file to inspect")] path: P,
+) -> Result<(), Error> {
     let p = path.as_ref();
     log::info!("Opening file.");
     let r = tokio::fs::File::open(p)

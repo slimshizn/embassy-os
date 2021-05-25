@@ -32,6 +32,12 @@ pub struct Disk {
     pub partitions: Vec<PartitionInfo>,
 }
 
+#[command(about = "Manage external disks", subcommands(list))]
+pub async fn disks<T>(#[context] ctx: T) -> Result<T, RpcError> {
+    Ok(ctx)
+}
+
+#[command(about = "List external drive information", aliases("show", "ls"))]
 pub async fn list() -> Result<Vec<Disk>, Error> {
     let output = tokio::process::Command::new("parted")
         .arg("-lm")

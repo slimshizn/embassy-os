@@ -208,6 +208,7 @@ pub async fn install_path<P: AsRef<Path>>(p: P, name: Option<&str>) -> Result<()
     Ok(())
 }
 
+#[command(about = "Prints semantic version and exits")]
 pub async fn install<R: AsyncRead + Unpin + Send + Sync>(
     r: R,
     name: Option<&str>,

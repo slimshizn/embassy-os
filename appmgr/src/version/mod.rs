@@ -282,3 +282,16 @@ pub async fn self_update(requirement: emver::VersionRange) -> Result<(), Error> 
 
     Ok(())
 }
+
+#[command(about = "Prints git version info and exits", rename = "git-info")]
+async fn git_info() -> Result<&'static emver::Version, Error> {
+    let git_version =
+        git_version::git_version!(args = ["--always", "--abbrev=40", "--dirty=-modified"]);
+    #[cfg(not(feature = "production"))]
+    let git_version = format!("{}-dev", git_version);
+}
+
+#[command(about = "Prints semantic version and exits")]
+async fn semver() -> Result<&'static emver::Version, Error> {
+    crate::version::Current::new().semver()
+}
