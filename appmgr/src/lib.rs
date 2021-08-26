@@ -30,6 +30,7 @@ pub mod hostname;
 pub mod id;
 pub mod inspect;
 pub mod install;
+pub mod logs;
 pub mod manager;
 pub mod middleware;
 pub mod migration;
@@ -71,7 +72,13 @@ pub fn main_api(#[context] ctx: EitherContext) -> Result<EitherContext, RpcError
     Ok(ctx)
 }
 
-#[command(subcommands(install::install, config::config, control::start, control::stop))]
+#[command(subcommands(
+    install::install,
+    config::config,
+    control::start,
+    control::stop,
+    logs::logs,
+))]
 pub fn package(#[context] ctx: EitherContext) -> Result<EitherContext, RpcError> {
     Ok(ctx)
 }
